@@ -1,0 +1,227 @@
+/* 小圆生活助手 —— 应用外壳、路由、侧边栏（含移动端返回手势）、通用 UI */
+(function () {
+  // ---------- 通用 UI 工具 ----------
+  const UI = {
+    isMobile() { return window.matchMedia('(max-width: 860px)').matches; },
+    today() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); },
+    parseDate(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); },
+    fmtMD(s) { const d = this.parseDate(s); return (d.getMonth() + 1) + '月' + d.getDate() + '日'; },
+    addDays(s, n) { const d = this.parseDate(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); },
+    diffDays(a, b) { return Math.round((this.parseDate(b) - this.parseDate(a)) / 86400000); },
+    daysFromToday(s) { return this.diffDays(this.today(), s); },
+    weekday(s) { return ['日', '一', '二', '三', '四', '五', '六'][this.parseDate(s).getDay()]; },
+    escape(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); },
+    el(tag, attrs, children) {
+      const e = document.createElement(tag);
+      if (attrs) for (const k in attrs) {
+        if (k === 'class') e.className = attrs[k];
+        else if (k === 'html') e.innerHTML = attrs[k];
+        else if (k.startsWith('on') && typeof attrs[k] === 'function') e.addEventListener(k.slice(2), attrs[k]);
+        else if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+      }
+      function htmlNode(str) { const t = document.createElement('template'); t.innerHTML = str.trim(); return t.content.firstChild; }
+      if (children) (Array.isArray(children) ? children : [children]).forEach((c) => {
+        if (c == null) return;
+        if (typeof c === 'string' && c.charAt(0) === '<') e.appendChild(htmlNode(c));
+        else e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+      });
+      return e;
+    },
+    toast(msg, ms = 1800) {
+      let t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(this._tt); this._tt = setTimeout(() => t.classList.remove('show'), ms);
+    },
+    openModal({ title = '', body = null, actions = [], onMount }) {
+      const mask = document.getElementById('modal-mask');
+      const box = document.getElementById('modal');
+      box.innerHTML = '';
+      const h = UI.el('h3', { html: title }); box.appendChild(h);
+      if (body) box.appendChild(typeof body === 'string' ? UI.el('div', { html: body }) : body);
+      if (actions.length) {
+        const act = UI.el('div', { class: 'modal-actions' });
+        actions.forEach((a) => {
+          const b = UI.el('button', { class: 'btn ' + (a.kind || ''), onclick: () => (a.onClick ? a.onClick(close) : close()) }, a.text);
+          act.appendChild(b);
+        });
+        box.appendChild(act);
+      }
+      mask.classList.add('show');
+      const close = () => mask.classList.remove('show');
+      if (onMount) onMount(box, close);
+      return { close };
+    },
+    confirm(title, msg) {
+      return new Promise((res) => {
+        UI.openModal({
+          title, body: UI.el('p', { class: 'muted' }, msg),
+          actions: [
+            { text: '取消', kind: 'btn-ghost', onClick: (c) => { c(); res(false); } },
+            { text: '确定', kind: 'btn-danger', onClick: (c) => { c(); res(true); } }
+          ]
+        });
+      });
+    }
+  };
+  window.UI = UI;
+
+  // ---------- 路由 ----------
+  const routes = {};
+  window.registerView = function (name, render) { routes[name] = render; };
+
+  const NAV = [
+    { key: 'home', label: '首页', icon: 'home' },
+    { key: 'weight', label: '减肥助手', icon: 'weight' },
+    { key: 'period', label: '经期助手', icon: 'period' },
+    { key: 'bjd', label: 'BJD 娃娃', icon: 'bjd' }
+  ];
+
+  function setRoute(name) {
+    if (!routes[name]) name = 'home';
+    location.hash = '#/' + name;
+  }
+  function currentRoute() {
+    const h = location.hash.replace(/^#\/?/, '');
+    return routes[h] ? h : 'home';
+  }
+
+  function renderRoute() {
+    const name = currentRoute();
+    const main = document.getElementById('view');
+    main.innerHTML = '';
+    routes[name](main);
+    // 侧边栏高亮
+    document.querySelectorAll('.nav-item').forEach((b) => {
+      b.classList.toggle('active', b.dataset.route === name);
+    });
+    document.getElementById('page-title').textContent = (NAV.find((n) => n.key === name) || {}).label || '小圆生活助手';
+    if (window.__bjdRevoke) window.__bjdRevoke();
+    if (UI.isMobile() && sidebarOpen) closeSidebar(false);
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- 侧边栏 + 移动端返回手势 ----------
+  let sidebarOpen = false;
+  const sb = document.getElementById('sidebar');
+  const scrim = document.getElementById('scrim');
+
+  function openSidebar() {
+    sidebarOpen = true;
+    sb.classList.add('open');
+    scrim.classList.add('show');
+    if (UI.isMobile()) history.pushState({ sb: 1 }, '');
+  }
+  function closeSidebar(pop = true) {
+    if (!sidebarOpen && !sb.classList.contains('open')) return;
+    sidebarOpen = false;
+    sb.classList.remove('open');
+    scrim.classList.remove('show');
+    if (pop && UI.isMobile() && history.state && history.state.sb) history.back();
+  }
+  // 系统返回手势 / 浏览器后退 -> 关闭抽屉
+  window.addEventListener('popstate', () => {
+    if (sidebarOpen) closeSidebar(false);
+  });
+
+  // 左边缘滑动打开抽屉
+  let touchStartX = null;
+  document.addEventListener('touchstart', (e) => {
+    if (UI.isMobile() && !sidebarOpen && e.touches[0].clientX < 24) touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (touchStartX != null && e.touches[0].clientX - touchStartX > 60) { openSidebar(); touchStartX = null; }
+  }, { passive: true });
+  document.addEventListener('touchend', () => { touchStartX = null; });
+
+  // ---------- 初始化 ----------
+  function init() {
+    // 侧边栏导航项
+    const nav = document.getElementById('nav');
+    NAV.forEach((n) => {
+      const btn = UI.el('button', {
+        class: 'nav-item', 'data-route': n.key,
+      onclick: () => {
+        if (UI.isMobile()) closeSidebar();
+        setRoute(n.key);
+      }
+      }, [
+        UI.el('span', { class: 'ico', html: svg(n.icon) }),
+        UI.el('span', {}, n.label)
+      ]);
+      nav.appendChild(btn);
+    });
+
+    document.getElementById('menu-btn').addEventListener('click', () => {
+      if (sidebarOpen) closeSidebar();
+      else if (UI.isMobile()) openSidebar();
+      else sb.classList.toggle('collapsed');
+    });
+    scrim.addEventListener('click', () => closeSidebar());
+    document.getElementById('settings-btn').addEventListener('click', openSettings);
+
+      // 注册视图（Period 需先于 Home，因为首页依赖其预测方法）
+      if (window.PeriodView) PeriodView.register();
+      if (window.WeightView) WeightView.register();
+      if (window.BjdView) BjdView.register();
+      if (window.HomeView) HomeView.register();
+
+    window.addEventListener('hashchange', renderRoute);
+    if (!location.hash) location.hash = '#/home';
+    else renderRoute();
+
+    // 注册 Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  }
+
+  function openSettings() {
+    if (UI.isMobile() && sidebarOpen) closeSidebar(false);
+    const ps = Store.data.periodSettings;
+    const body = UI.el('div', {}, [
+      UI.el('div', { class: 'field' }, [
+        UI.el('label', {}, '经期周期长度（天）'),
+        UI.el('input', { type: 'number', id: 'set-cycle', value: ps.cycle, min: 20, max: 45 })
+      ]),
+      UI.el('div', { class: 'field' }, [
+        UI.el('label', {}, '黄体期长度（天，排卵期后到下次经期前）'),
+        UI.el('input', { type: 'number', id: 'set-luteal', value: ps.luteal, min: 10, max: 18 })
+      ]),
+      UI.el('hr', { class: 'sep' }),
+      UI.el('div', { class: 'modal-actions' }, [
+        UI.el('button', {
+          class: 'btn', onclick: () => {
+            const txt = JSON.stringify(Store.data);
+            const blob = new Blob([txt], { type: 'application/json' });
+            const a = UI.el('a', { href: URL.createObjectURL(blob), download: 'xiaoyuan-backup-' + UI.today() + '.json' });
+            a.click();
+          }
+        }, '导出备份'),
+        UI.el('button', {
+          class: 'btn', onclick: () => {
+            const inp = UI.el('input', { type: 'file', accept: 'application/json', style: 'display:none' });
+            inp.onchange = () => {
+              const f = inp.files[0]; if (!f) return;
+              const r = new FileReader();
+              r.onload = () => { try { Store.importJSON(r.result); UI.toast('已恢复备份'); setTimeout(() => location.reload(), 600); } catch (e) { UI.toast('备份文件无效'); } };
+              r.readAsText(f);
+            };
+            inp.click();
+          }
+        }, '导入备份')
+      ])
+    ]);
+    UI.openModal({
+      title: '设置 · 备份', body,
+      actions: [{ text: '保存', kind: 'btn-primary', onClick: (c) => {
+        const cyc = parseInt(document.getElementById('set-cycle').value, 10);
+        const lut = parseInt(document.getElementById('set-luteal').value, 10);
+        if (cyc >= 20 && cyc <= 45) Store.data.periodSettings.cycle = cyc;
+        if (lut >= 10 && lut <= 18) Store.data.periodSettings.luteal = lut;
+        Store.save(); UI.toast('设置已保存'); c();
+      } }]
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
