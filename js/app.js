@@ -201,11 +201,19 @@
       UI.el('hr', { class: 'sep' }),
       UI.el('div', { class: 'modal-actions' }, [
         UI.el('button', {
-          class: 'btn', onclick: () => {
-            const txt = JSON.stringify(Store.data);
-            const blob = new Blob([txt], { type: 'application/json' });
-            const a = UI.el('a', { href: URL.createObjectURL(blob), download: 'xiaoyuan-backup-' + UI.today() + '.json' });
-            a.click();
+          class: 'btn', onclick: async () => {
+            try {
+              let photos = [];
+              try {
+                const all = await DB.getAll();
+                photos = await Promise.all(all.map(async ({ id, blob }) => ({ id, dataUrl: await blobToDataURL(blob) })));
+              } catch (e) { /* 无照片时忽略 */ }
+              const out = Object.assign({}, Store.data, { __photos: photos });
+              const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+              const a = UI.el('a', { href: URL.createObjectURL(blob), download: 'xiaoyuan-backup-' + UI.today() + '.json' });
+              a.click();
+              UI.toast('备份已导出（含 ' + photos.length + ' 张照片）');
+            } catch (e) { UI.toast('导出失败'); }
           }
         }, '导出备份'),
         UI.el('button', {
@@ -214,7 +222,21 @@
             inp.onchange = () => {
               const f = inp.files[0]; if (!f) return;
               const r = new FileReader();
-              r.onload = () => { try { Store.importJSON(r.result); UI.toast('已恢复备份'); setTimeout(() => location.reload(), 600); } catch (e) { UI.toast('备份文件无效'); } };
+              r.onload = async () => {
+                try {
+                  const parsed = JSON.parse(r.result);
+                  const photos = parsed.__photos || [];
+                  delete parsed.__photos;
+                  Store.importJSON(JSON.stringify(parsed));
+                  // 还原照片到 IndexedDB
+                  let okCount = 0;
+                  await Promise.all(photos.map(async (p) => {
+                    try { const b = await dataURLToBlob(p.dataUrl); await DB.put(p.id, b); okCount++; } catch (e) { /* 单张失败忽略 */ }
+                  }));
+                  UI.toast('已恢复备份' + (photos.length ? '（' + okCount + ' 张照片）' : ''));
+                  setTimeout(() => location.reload(), 600);
+                } catch (e) { UI.toast('备份文件无效'); }
+              };
               r.readAsText(f);
             };
             inp.click();
@@ -238,6 +260,11 @@
       ]
     });
   }
+
+  function blobToDataURL(blob) {
+    return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+  }
+  function dataURLToBlob(dataUrl) { return fetch(dataUrl).then((r) => r.blob()); }
 
   document.addEventListener('DOMContentLoaded', init);
 })();

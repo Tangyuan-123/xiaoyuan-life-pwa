@@ -58,12 +58,16 @@ function renderWeight(root) {
   if (recs.length) {
     const first = recs[0].value, last = recs[recs.length - 1].value;
     const diff = (last - first).toFixed(1);
+    const bmi = calcBMI(last, Store.data.height);
+    const bi = bmi != null ? bmiInfo(bmi) : null;
     const boxes = UI.el('div', { class: 'stat-row', style: 'margin-bottom:14px;' }, [
       W_statBox(last + ' kg', '当前体重'),
       W_statBox((diff >= 0 ? '+' : '') + diff + ' kg', '累计变化'),
-      W_statBox(recs.length + ' 次', '记录次数')
+      W_statBox(recs.length + ' 次', '记录次数'),
+      bi ? W_statBox(bmi.toFixed(1), 'BMI · ' + bi.t, bi.c) : W_statBox('—', 'BMI')
     ]);
     root.appendChild(boxes);
+    if (bi) root.appendChild(UI.el('div', { class: 'muted', style: 'font-size:12px;margin:-6px 0 12px;' }, '健康区间 BMI 18.5~24（中国标准），当前' + bi.t));
   }
 
   // 图表
@@ -125,7 +129,8 @@ function delWeight(rec) {
 
 function setTargetWeight() {
   const body = UI.el('div', {}, [
-    W_field('目标体重 (kg)', UI.el('input', { type: 'number', id: 't-weight', step: '0.1', min: '20', max: '300', value: Store.data.targetWeight || '', placeholder: '例如 50.0' }))
+    W_field('目标体重 (kg)', UI.el('input', { type: 'number', id: 't-weight', step: '0.1', min: '20', max: '300', value: Store.data.targetWeight || '', placeholder: '例如 50.0' })),
+    W_field('身高 (cm)', UI.el('input', { type: 'number', id: 't-height', step: '0.1', min: '100', max: '250', value: Store.data.height || '', placeholder: '例如 165' }))
   ]);
   UI.openModal({
     title: '设置目标体重', body,
@@ -135,11 +140,27 @@ function setTargetWeight() {
         const v = parseFloat(document.getElementById('t-weight').value);
         if (!v || v <= 0) { UI.toast('请输入有效体重'); return; }
         Store.data.targetWeight = v;
+        const h = parseFloat(document.getElementById('t-height').value);
+        if (h && h >= 100 && h <= 250) Store.data.height = h;
         Store.save();
         UI.toast('目标已更新'); c(); window.rerenderCurrent();
       } }
     ]
   });
+}
+
+// BMI 计算与健康区间
+function calcBMI(weightKg, heightCm) {
+  if (!weightKg || !heightCm) return null;
+  const m = heightCm / 100;
+  return weightKg / (m * m);
+}
+function bmiInfo(bmi) {
+  if (bmi == null) return null;
+  if (bmi < 18.5) return { t: '偏瘦', c: '#5BC8FF' };
+  if (bmi < 24) return { t: '正常', c: '#6BCB9C' };
+  if (bmi < 28) return { t: '偏胖', c: '#FFC46B' };
+  return { t: '肥胖', c: '#FF6B9D' };
 }
 
 /* ---------- 围度 ---------- */
@@ -297,7 +318,7 @@ function closeFullscreen() {
 
 /* ---------- 小工具 ---------- */
 function W_field(label, input) { return UI.el('div', { class: 'field' }, [UI.el('label', {}, label), input]); }
-function W_statBox(v, l) { return UI.el('div', { class: 'stat-box' }, [UI.el('div', { class: 'v' }, v), UI.el('div', { class: 'l' }, l)]); }
+function W_statBox(v, l, color) { return UI.el('div', { class: 'stat-box' }, [UI.el('div', { class: 'v', style: color ? 'color:' + color + ';' : '' }, v), UI.el('div', { class: 'l' }, l)]); }
 function W_empty(icon, text) {
   return UI.el('div', { class: 'empty' }, [UI.el('div', { class: 'em-ico', html: svg(icon) }), UI.el('div', { style: 'margin-top:8px;' }, text)]);
 }

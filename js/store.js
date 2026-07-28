@@ -5,6 +5,7 @@ const Store = (function () {
   const defaults = {
     weight: [],            // [{id, date, value, note}]
     targetWeight: null,    // 目标体重(kg)
+    height: null,          // 身高(cm)
     circGroups: [          // 围度分组
       { id: 'g_chest', name: '胸围', color: '#FF6B9D' },
       { id: 'g_waist', name: '腰围', color: '#FFB3CE' },

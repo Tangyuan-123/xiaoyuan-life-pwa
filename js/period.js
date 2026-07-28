@@ -238,11 +238,19 @@ function periodForm(rec, prefillStart, prefillEnd) {
     title: isEdit ? '编辑经期' : '记录经期', body,
     actions: [
       { text: '取消', kind: 'btn-ghost' },
-      { text: isEdit ? '保存' : '添加', kind: 'btn-primary', onClick: (c) => {
+      { text: isEdit ? '保存' : '添加', kind: 'btn-primary', onClick: async (c) => {
         const start = document.getElementById('p-start').value;
         let end = document.getElementById('p-end').value;
         if (end && end < start) end = start;
         if (!start) { UI.toast('请选择开始日期'); return; }
+        // 重叠校验：新区间与已有经期日期区间是否相交
+        const pLen = Store.data.periodSettings.periodLen || 6;
+        const effEnd = end || UI.addDays(start, pLen - 1);
+        const conflict = Store.getArr('period').find((o) => o.id !== (rec && rec.id) && start <= (o.end || UI.addDays(o.start, pLen - 1)) && effEnd >= o.start);
+        if (conflict) {
+          const ok = await UI.confirm('日期重叠', '该经期与 ' + UI.fmtMD(conflict.start) + ' 的记录日期区间重叠，仍要保存吗？');
+          if (!ok) return;
+        }
         const obj = { start, end: end || null, note: document.getElementById('p-note').value.trim() };
         if (isEdit) Store.update('period', rec.id, obj); else Store.add('period', obj);
         UI.toast('已保存'); c(); window.rerenderCurrent();

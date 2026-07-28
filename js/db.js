@@ -50,6 +50,16 @@ const DB = (function () {
     return get(id).then((blob) => (blob ? URL.createObjectURL(blob) : null));
   }
 
+  // 读取全部图片（用于备份导出，将 Blob 内嵌进 JSON）
+  function getAll() {
+    return open().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const r = tx.objectStore(STORE).getAll();
+      r.onsuccess = () => resolve(r.result || []);
+      r.onerror = () => reject(r.error);
+    }));
+  }
+
   // 将图片文件压缩并生成 Blob（统一 JPEG，最长边 maxSize）
   function fileToBlob(file, maxSize = 1000, quality = 0.82) {
     return new Promise((resolve, reject) => {
@@ -77,5 +87,5 @@ const DB = (function () {
     });
   }
 
-  return { open, put, get, del, getURL, fileToBlob };
+  return { open, put, get, del, getURL, getAll, fileToBlob };
 })();
