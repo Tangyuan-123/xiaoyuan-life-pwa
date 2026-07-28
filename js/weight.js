@@ -60,14 +60,19 @@ function renderWeight(root) {
     const diff = (last - first).toFixed(1);
     const bmi = calcBMI(last, Store.data.height);
     const bi = bmi != null ? bmiInfo(bmi) : null;
+    const bmiBox = bi ? W_statBox(bmi.toFixed(1), 'BMI · ' + bi.t, bi.c) : W_statBox('设置身高', 'BMI', '#FF6B9D');
+    bmiBox.style.cursor = 'pointer';
+    bmiBox.title = '点击设置身高';
+    bmiBox.onclick = () => setHeight();
     const boxes = UI.el('div', { class: 'stat-row', style: 'margin-bottom:14px;' }, [
       W_statBox(last + ' kg', '当前体重'),
       W_statBox((diff >= 0 ? '+' : '') + diff + ' kg', '累计变化'),
       W_statBox(recs.length + ' 次', '记录次数'),
-      bi ? W_statBox(bmi.toFixed(1), 'BMI · ' + bi.t, bi.c) : W_statBox('—', 'BMI')
+      bmiBox
     ]);
     root.appendChild(boxes);
     if (bi) root.appendChild(UI.el('div', { class: 'muted', style: 'font-size:12px;margin:-6px 0 12px;' }, '健康区间 BMI 18.5~24（中国标准），当前' + bi.t));
+    else root.appendChild(UI.el('div', { class: 'muted', style: 'font-size:12px;margin:-6px 0 12px;cursor:pointer;', onclick: () => setHeight() }, '👆 点击 BMI 卡片设置身高，自动计算 BMI'));
   }
 
   // 图表
@@ -129,8 +134,7 @@ function delWeight(rec) {
 
 function setTargetWeight() {
   const body = UI.el('div', {}, [
-    W_field('目标体重 (kg)', UI.el('input', { type: 'number', id: 't-weight', step: '0.1', min: '20', max: '300', value: Store.data.targetWeight || '', placeholder: '例如 50.0' })),
-    W_field('身高 (cm)', UI.el('input', { type: 'number', id: 't-height', step: '0.1', min: '100', max: '250', value: Store.data.height || '', placeholder: '例如 165' }))
+    W_field('目标体重 (kg)', UI.el('input', { type: 'number', id: 't-weight', step: '0.1', min: '20', max: '300', value: Store.data.targetWeight || '', placeholder: '例如 50.0' }))
   ]);
   UI.openModal({
     title: '设置目标体重', body,
@@ -140,10 +144,26 @@ function setTargetWeight() {
         const v = parseFloat(document.getElementById('t-weight').value);
         if (!v || v <= 0) { UI.toast('请输入有效体重'); return; }
         Store.data.targetWeight = v;
-        const h = parseFloat(document.getElementById('t-height').value);
-        if (h && h >= 100 && h <= 250) Store.data.height = h;
         Store.save();
         UI.toast('目标已更新'); c(); window.rerenderCurrent();
+      } }
+    ]
+  });
+}
+// 身高单独设置（BMI 计算依赖，从目标体重弹窗中拆出，避免找不到入口）
+function setHeight() {
+  const body = UI.el('div', {}, [
+    W_field('身高 (cm)', UI.el('input', { type: 'number', id: 'h-height', step: '0.1', min: '100', max: '250', value: Store.data.height || '', placeholder: '例如 165' }))
+  ]);
+  UI.openModal({
+    title: '设置身高', body,
+    actions: [
+      { text: '取消', kind: 'btn-ghost' },
+      { text: '保存', kind: 'btn-primary', onClick: (c) => {
+        const h = parseFloat(document.getElementById('h-height').value);
+        if (!h || h < 100 || h > 250) { UI.toast('请输入有效身高(100~250cm)'); return; }
+        Store.data.height = h; Store.save();
+        UI.toast('身高已保存'); c(); window.rerenderCurrent();
       } }
     ]
   });

@@ -60,23 +60,25 @@ const DB = (function () {
     }));
   }
 
-  // 将图片文件压缩并生成 Blob（统一 JPEG，最长边 maxSize）
+  // 将图片文件压缩并生成 Blob（统一 JPEG，最长边 maxSize，并居中裁切为正方形）
   function fileToBlob(file, maxSize = 1000, quality = 0.82) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
-          let { width, height } = img;
-          if (width > maxSize || height > maxSize) {
-            const scale = Math.min(maxSize / width, maxSize / height);
-            width = Math.round(width * scale);
-            height = Math.round(height * scale);
-          }
+          const iw = img.naturalWidth, ih = img.naturalHeight;
+          // 源图居中正方形裁剪区域
+          const srcSide = Math.min(iw, ih);
+          const sx = Math.round((iw - srcSide) / 2);
+          const sy = Math.round((ih - srcSide) / 2);
+          // 缩放到最长边不超过 maxSize
+          const scale = Math.min(1, maxSize / srcSide);
+          const destSide = Math.max(1, Math.round(srcSide * scale));
           const canvas = document.createElement('canvas');
-          canvas.width = width; canvas.height = height;
+          canvas.width = destSide; canvas.height = destSide;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
+          ctx.drawImage(img, sx, sy, srcSide, srcSide, 0, 0, destSide, destSide);
           canvas.toBlob((b) => resolve(b), 'image/jpeg', quality);
         };
         img.onerror = reject;
