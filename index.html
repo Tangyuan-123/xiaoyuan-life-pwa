@@ -77,7 +77,9 @@
     // 关闭抽屉/弹窗的 Esc 支持
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        if (document.getElementById('fs-layer').classList.contains('show')) closeFullscreen();
+        const pv = document.querySelector('.photo-viewer');
+        if (pv) { pv.remove(); }
+        else if (document.getElementById('fs-layer').classList.contains('show')) closeFullscreen();
         else document.getElementById('modal-mask').classList.remove('show');
       }
     });

@@ -31,6 +31,29 @@ window.WeightView = {
 /* ---------- 体重 ---------- */
 function renderWeight(root) {
   const recs = Store.getArr('weight').slice().sort((a, b) => a.date.localeCompare(b.date));
+
+  // 目标体重卡片
+  const target = Store.data.targetWeight;
+  const lastRec = recs.length ? recs[recs.length - 1] : null;
+  const targetCard = UI.el('div', { class: 'card', style: 'margin-bottom:14px;' }, [
+    UI.el('div', { class: 'card-title' }, [svg('target'), '目标体重']),
+    target ? (() => {
+      const remaining = lastRec ? (lastRec.value - target) : null;
+      const done = remaining != null && remaining <= 0;
+      return UI.el('div', { style: 'display:flex;align-items:center;gap:14px;' }, [
+        UI.el('div', { style: 'flex:1;' }, [
+          UI.el('div', { style: 'font-size:20px;font-weight:800;' }, target + ' kg'),
+          UI.el('div', { class: 'muted', style: 'font-size:13px;' }, done ? '已达成目标，太棒了 🎉' : (remaining != null ? '还差 ' + remaining.toFixed(1) + ' kg' : '记录体重后显示进度'))
+        ]),
+        UI.el('button', { class: 'btn btn-sm', onclick: () => setTargetWeight() }, '修改目标')
+      ]);
+    })() : UI.el('div', { style: 'display:flex;align-items:center;gap:14px;' }, [
+      UI.el('div', { class: 'muted', style: 'flex:1;' }, '还没有设置目标体重，设一个激励自己吧～'),
+      UI.el('button', { class: 'btn btn-sm btn-primary', onclick: () => setTargetWeight() }, '设置目标')
+    ])
+  ]);
+  root.appendChild(targetCard);
+
   // 概览
   if (recs.length) {
     const first = recs[0].value, last = recs[recs.length - 1].value;
@@ -90,14 +113,33 @@ function weightForm(rec) {
         if (!v || v <= 0) { UI.toast('请输入有效体重'); return; }
         const obj = { date: document.getElementById('w-date').value || UI.today(), value: v, note: document.getElementById('w-note').value.trim() };
         if (isEdit) Store.update('weight', rec.id, obj); else Store.add('weight', obj);
-        UI.toast('已保存'); c(); location.reload();
+        UI.toast('已保存'); c(); window.rerenderCurrent();
       } }
     ]
   });
 }
 
 function delWeight(rec) {
-  UI.confirm('删除记录', '确定删除这条体重记录吗？').then((ok) => { if (ok) { Store.remove('weight', rec.id); UI.toast('已删除'); location.reload(); } });
+  UI.confirm('删除记录', '确定删除这条体重记录吗？').then((ok) => { if (ok) { Store.remove('weight', rec.id); UI.toast('已删除'); window.rerenderCurrent(); } });
+}
+
+function setTargetWeight() {
+  const body = UI.el('div', {}, [
+    W_field('目标体重 (kg)', UI.el('input', { type: 'number', id: 't-weight', step: '0.1', min: '20', max: '300', value: Store.data.targetWeight || '', placeholder: '例如 50.0' }))
+  ]);
+  UI.openModal({
+    title: '设置目标体重', body,
+    actions: [
+      { text: '取消', kind: 'btn-ghost' },
+      { text: '保存', kind: 'btn-primary', onClick: (c) => {
+        const v = parseFloat(document.getElementById('t-weight').value);
+        if (!v || v <= 0) { UI.toast('请输入有效体重'); return; }
+        Store.data.targetWeight = v;
+        Store.save();
+        UI.toast('目标已更新'); c(); window.rerenderCurrent();
+      } }
+    ]
+  });
 }
 
 /* ---------- 围度 ---------- */
@@ -174,7 +216,7 @@ function circForm(rec) {
         if (!Object.keys(values).length) { UI.toast('至少填一个围度'); return; }
         const obj = { date: document.getElementById('c-date').value || UI.today(), values };
         if (isEdit) Store.update('circ', rec.id, obj); else Store.add('circ', obj);
-        UI.toast('已保存'); c(); location.reload();
+        UI.toast('已保存'); c(); window.rerenderCurrent();
       } }
     ]
   });
@@ -216,7 +258,7 @@ function manageGroups() {
 }
 
 function delCirc(rec) {
-  UI.confirm('删除记录', '确定删除这条围度记录吗？').then((ok) => { if (ok) { Store.remove('circ', rec.id); UI.toast('已删除'); location.reload(); } });
+  UI.confirm('删除记录', '确定删除这条围度记录吗？').then((ok) => { if (ok) { Store.remove('circ', rec.id); UI.toast('已删除'); window.rerenderCurrent(); } });
 }
 
 /* ---------- 图表卡片 + 全屏 ---------- */

@@ -57,20 +57,22 @@ function dollCard(d) {
 
 function dollDetail(d) {
   const body = UI.el('div', {});
-  // 照片
+  // 照片网格（统一尺寸）
   if (d.photos && d.photos.length) {
-    const strip = UI.el('div', { class: 'photo-strip' });
+    const grid = UI.el('div', { class: 'photo-grid' });
     d.photos.forEach((pid) => thumbURL(pid, (u) => {
-      const ph = UI.el('div', { class: 'ph' }, UI.el('img', { src: u }));
-      strip.appendChild(ph);
+      const ph = UI.el('div', { class: 'pg-item' }, UI.el('img', { src: u, alt: d.name }));
+      ph.addEventListener('click', () => openPhotoViewer(d.photos, pid));
+      grid.appendChild(ph);
     }));
-    body.appendChild(strip);
+    body.appendChild(grid);
   } else {
     body.appendChild(UI.el('div', { class: 'muted', style: 'padding:8px 0;' }, '暂无照片'));
   }
   body.appendChild(UI.el('hr', { class: 'sep' }));
   const info = [
     ['名字', d.name], ['娃社', d.company], ['尺寸', d.size], ['肤色', d.skin],
+    ['头围', d.headCirc ? d.headCirc + ' cm' : ''], ['脖围', d.neckCirc ? d.neckCirc + ' cm' : ''],
     ['价格', d.price ? '¥' + d.price : ''], ['性别', d.gender], ['入手日期', d.acquired], ['备注', d.note]
   ];
   info.forEach(([k, v]) => {
@@ -83,10 +85,40 @@ function dollDetail(d) {
   UI.openModal({
     title: d.name || '娃娃详情', body,
     actions: [
+      { text: '关闭', kind: 'btn-ghost' },
       { text: '删除', kind: 'btn-danger', onClick: (c) => { c(); delDoll(d); } },
       { text: '编辑', kind: 'btn-primary', onClick: (c) => { c(); dollForm(d); } }
     ]
   });
+}
+
+/* 照片灯箱查看器 */
+function openPhotoViewer(photoIds, currentId) {
+  const mask = UI.el('div', { class: 'photo-viewer' });
+  let idx = Math.max(0, photoIds.indexOf(currentId));
+  const imgWrap = UI.el('div', { class: 'pv-img-wrap' });
+  const counter = UI.el('div', { class: 'pv-counter' });
+  function show() {
+    imgWrap.innerHTML = '';
+    thumbURL(photoIds[idx], (u) => {
+      imgWrap.appendChild(UI.el('img', { src: u, class: 'pv-img' }));
+    });
+    counter.textContent = (idx + 1) + ' / ' + photoIds.length;
+  }
+  show();
+  const prevBtn = UI.el('button', { class: 'pv-nav pv-prev', html: svg('back') });
+  const nextBtn = UI.el('button', { class: 'pv-nav pv-next', html: svg('chevron') });
+  const closeBtn = UI.el('button', { class: 'pv-close', html: svg('close') });
+  prevBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + photoIds.length) % photoIds.length; show(); });
+  nextBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % photoIds.length; show(); });
+  closeBtn.addEventListener('click', () => mask.remove());
+  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
+  mask.appendChild(closeBtn);
+  mask.appendChild(prevBtn);
+  mask.appendChild(imgWrap);
+  mask.appendChild(nextBtn);
+  mask.appendChild(counter);
+  document.body.appendChild(mask);
 }
 
 function dollForm(existing) {
@@ -141,6 +173,10 @@ function dollForm(existing) {
       B_field('价格 (¥)', UI.el('input', { type: 'number', id: 'd-price', min: '0', step: '1', value: existing ? (existing.price || '') : '', placeholder: '选填' }))
     ]),
     UI.el('div', { class: 'row' }, [
+      B_field('头围 (cm)', UI.el('input', { type: 'number', id: 'd-headcirc', step: '0.1', min: '0', value: existing ? (existing.headCirc || '') : '', placeholder: '选填' })),
+      B_field('脖围 (cm)', UI.el('input', { type: 'number', id: 'd-neckcirc', step: '0.1', min: '0', value: existing ? (existing.neckCirc || '') : '', placeholder: '选填' }))
+    ]),
+    UI.el('div', { class: 'row' }, [
       B_field('性别', UI.el('select', { id: 'd-gender' }, [
         UI.el('option', { value: '' }, '不填'),
         UI.el('option', { value: '女', selected: existing && existing.gender === '女' ? '' : null }, '女'),
@@ -165,6 +201,8 @@ function dollForm(existing) {
           company: document.getElementById('d-company').value.trim(),
           size: document.getElementById('d-size').value.trim(),
           skin: document.getElementById('d-skin').value.trim(),
+          headCirc: document.getElementById('d-headcirc').value || '',
+          neckCirc: document.getElementById('d-neckcirc').value || '',
           price: document.getElementById('d-price').value || '',
           gender: document.getElementById('d-gender').value,
           acquired: document.getElementById('d-acquired').value,
@@ -179,7 +217,7 @@ function dollForm(existing) {
         } else {
           Store.add('dolls', obj);
         }
-        UI.toast('已保存 💕'); c(); location.reload();
+        UI.toast('已保存 💕'); c(); window.rerenderCurrent();
       } }
     ]
   });
@@ -190,7 +228,7 @@ function delDoll(d) {
     if (!ok) return;
     (d.photos || []).forEach((p) => DB.del(p));
     Store.remove('dolls', d.id);
-    UI.toast('已删除'); location.reload();
+    UI.toast('已删除'); window.rerenderCurrent();
   });
 }
 

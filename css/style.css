@@ -223,6 +223,9 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 }
 .cal .day.out { color: var(--text-faint); background: transparent; }
 .cal .day.today { box-shadow: 0 0 0 2px var(--primary); }
+.cal .day.start { position: relative; }
+.cal .day.start::after { content: ''; position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px rgba(240,72,138,.6); }
+.cal .day.start.predicted::after { background: var(--primary-deep); box-shadow: none; }
 .cal .day.menstruation { background: linear-gradient(135deg,#FF8FB6,#FF6B9D); color: #fff; }
 .cal .day.follicular { background: #E7F4EC; color: #3E8E63; }
 .cal .day.ovulation { background: #FFF1C2; color: #B8860B; font-weight: 800; }
@@ -246,6 +249,27 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .photo-strip .ph { flex: 0 0 72px; width: 72px; height: 72px; border-radius: 14px; overflow: hidden; position: relative; background: var(--primary-soft); }
 .photo-strip .ph img { width: 100%; height: 100%; object-fit: cover; }
 .photo-strip .ph .del { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; display: grid; place-items: center; font-size: 14px; }
+
+/* 照片网格（详情页，统一尺寸） */
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 4px; }
+.photo-grid .pg-item { aspect-ratio: 1/1; border-radius: 14px; overflow: hidden; background: var(--primary-soft); cursor: pointer; }
+.photo-grid .pg-item img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .18s; }
+.photo-grid .pg-item:active img { transform: scale(.94); }
+
+/* 照片灯箱 */
+.photo-viewer {
+  position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  animation: pv-fade .2s ease;
+}
+@keyframes pv-fade { from { opacity: 0; } to { opacity: 1; } }
+.photo-viewer .pv-img-wrap { max-width: 92vw; max-height: 80vh; display: flex; align-items: center; justify-content: center; }
+.photo-viewer .pv-img { max-width: 92vw; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+.photo-viewer .pv-close { position: absolute; top: 16px; right: 16px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.15); color: #fff; display: grid; place-items: center; }
+.photo-viewer .pv-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.15); color: #fff; display: grid; place-items: center; }
+.photo-viewer .pv-prev { left: 12px; }
+.photo-viewer .pv-next { right: 12px; }
+.photo-viewer .pv-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; font-weight: 600; background: rgba(255,255,255,.15); padding: 4px 14px; border-radius: 999px; }
 
 .stat-row { display: flex; flex-wrap: wrap; gap: 12px; }
 .stat-box { flex: 1 1 calc(50% - 6px); min-width: 130px; max-width: 100%; background: var(--surface); border-radius: var(--radius-sm); padding: 14px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }

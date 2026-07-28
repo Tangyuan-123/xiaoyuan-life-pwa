@@ -18,6 +18,7 @@ const Icons = {
   download: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5"/><path d="M4 19h16"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   check: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg>',
-  flower: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5c1.5-2.5 4-2.5 5 0s.5 4.5-2 5.5c2.5 1 2.5 4 .5 5.5s-4.5.5-5.5-2c-1 2.5-4 3.5-5.5 2s-2-4.5.5-5.5c-2.5-1-3-4-2-5.5s3.5-2.5 5 0Z"/><circle cx="12" cy="12" r="1.5"/></svg>'
+  flower: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5c1.5-2.5 4-2.5 5 0s.5 4.5-2 5.5c2.5 1 2.5 4 .5 5.5s-4.5.5-5.5-2c-1 2.5-4 3.5-5.5 2s-2-4.5.5-5.5c-2.5-1-3-4-2-5.5s3.5-2.5 5 0Z"/><circle cx="12" cy="12" r="1.5"/></svg>',
+  target: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>'
 };
 function svg(name) { return Icons[name] || ''; }

@@ -28,13 +28,14 @@ window.PeriodView = {
           (() => {
             const list = UI.el('div', { class: 'list' });
             recs.slice().reverse().forEach((r) => {
-              const end = r.end || UI.addDays(r.start, 4);
+              const end = r.end || UI.addDays(r.start, (Store.data.periodSettings.periodLen || 6) - 1);
               const len = UI.diffDays(r.start, end) + 1;
               list.appendChild(UI.el('div', { class: 'list-row' }, [
                 UI.el('div', { class: 'lr-main' }, [
                   UI.el('div', { class: 'lr-title' }, UI.fmtMD(r.start) + ' 起'),
                   UI.el('div', { class: 'lr-sub' }, '共 ' + len + ' 天' + (r.note ? ' · ' + r.note : ''))
                 ]),
+                UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: () => periodForm(r) }),
                 UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: () => delPeriod(r) })
               ]));
             });
@@ -58,13 +59,13 @@ function periodPhase(d) {
   if (!recs.length) return null;
   const cycle = Store.data.periodSettings.cycle;
   const luteal = Store.data.periodSettings.luteal;
-  const menstruationLen = 5;
+  const menstruationLen = Store.data.periodSettings.periodLen || 6;
   const ovulationDay = cycle - luteal;
 
   // 1) 已记录的经期
   for (const r of recs) {
-    const end = r.end || UI.addDays(r.start, 4);
-    if (d >= r.start && d <= end) return { type: 'menstruation', recorded: true };
+    const end = r.end || UI.addDays(r.start, (Store.data.periodSettings.periodLen || 6) - 1);
+    if (d >= r.start && d <= end) return { type: 'menstruation', recorded: true, start: d === r.start };
   }
   const last = recs[recs.length - 1];
   const lastStart = last.start;
@@ -75,7 +76,7 @@ function periodPhase(d) {
   const future = UI.daysFromToday(d) > 0;
 
   if (dayInCycle >= 0 && dayInCycle < menstruationLen) {
-    if (future) return { type: 'menstruation', predicted: true };
+    if (future) return { type: 'menstruation', predicted: true, start: dayInCycle === 0 };
     return { type: 'follicular' };
   }
   // 排卵期（易孕窗口）：排卵日前 5 天 ~ 排卵日
@@ -126,6 +127,7 @@ function buildStatusCard() {
   card.appendChild(UI.el('div', { class: 'stat-row', style: 'margin-top:14px;' }, [
     P_statBox('还剩 ' + (daysLeft >= 0 ? daysLeft : 0) + ' 天', '距下次经期'),
     P_statBox(UI.fmtMD(next), '预计 ' + UI.weekday(next) + ' 来'),
+    P_statBox((Store.data.periodSettings.periodLen || 6) + ' 天', '经期时长'),
     P_statBox(Store.data.periodSettings.cycle + ' 天', '周期长度')
   ]));
   return card;
@@ -163,6 +165,7 @@ function buildCalendar(y, m, onPrev, onNext) {
     let cls = 'day';
     if (ds === today) cls += ' today';
     if (ph) cls += ' ' + (ph.predicted ? 'predicted' : ph.type);
+    if (ph && ph.start) cls += ' start';
     const cell = UI.el('td', {}, UI.el('div', { class: cls }, String(d)));
     cell.querySelector('.day').addEventListener('click', () => tapDay(ds));
     row.appendChild(cell);
@@ -188,18 +191,24 @@ function tapDay(ds) {
   const recs = Store.getArr('period');
   const isStart = recs.some((r) => r.start === ds);
   if (isStart) { UI.toast('该日已是经期开始'); return; }
-  UI.confirm('记录经期', '将 ' + UI.fmtMD(ds) + ' 标记为经期第一天？').then((ok) => {
-    if (ok) { Store.add('period', { start: ds, end: null }); UI.toast('已记录 🌸'); location.reload(); }
-  });
+  // 打开表单，预填开始日期与默认结束日期，允许自由选择结束时间
+  const defaultEnd = UI.addDays(ds, (Store.data.periodSettings.periodLen || 6) - 1);
+  periodForm(null, ds, defaultEnd);
 }
 
-function periodForm(rec) {
+function periodForm(rec, prefillStart, prefillEnd) {
   const isEdit = !!rec;
+  const startVal = rec ? rec.start : (prefillStart || UI.today());
+  const endVal = rec && rec.end ? rec.end : (prefillEnd || '');
   const body = UI.el('div', {}, [
-    P_field('开始日期', UI.el('input', { type: 'date', id: 'p-start', value: rec ? rec.start : UI.today(), max: UI.today() })),
-    P_field('结束日期（可选）', UI.el('input', { type: 'date', id: 'p-end', value: rec && rec.end ? rec.end : '', min: rec ? rec.start : UI.today() })),
+    P_field('开始日期', UI.el('input', { type: 'date', id: 'p-start', value: startVal, max: UI.today() })),
+    P_field('结束日期（可选，不填则按设置中的经期时长自动计算）', UI.el('input', { type: 'date', id: 'p-end', value: endVal, min: startVal })),
     P_field('备注（可选）', UI.el('input', { type: 'text', id: 'p-note', value: rec && rec.note ? rec.note : '', placeholder: '状态 / 感受' }))
   ]);
+  // 开始日期变化时同步结束日期的最小值
+  const startInput = body.querySelector('#p-start');
+  const endInput = body.querySelector('#p-end');
+  startInput.addEventListener('change', () => { endInput.min = startInput.value; });
   UI.openModal({
     title: isEdit ? '编辑经期' : '记录经期', body,
     actions: [
@@ -211,14 +220,14 @@ function periodForm(rec) {
         if (!start) { UI.toast('请选择开始日期'); return; }
         const obj = { start, end: end || null, note: document.getElementById('p-note').value.trim() };
         if (isEdit) Store.update('period', rec.id, obj); else Store.add('period', obj);
-        UI.toast('已保存'); c(); location.reload();
+        UI.toast('已保存'); c(); window.rerenderCurrent();
       } }
     ]
   });
 }
 
 function delPeriod(rec) {
-  UI.confirm('删除记录', '确定删除这条经期记录吗？').then((ok) => { if (ok) { Store.remove('period', rec.id); UI.toast('已删除'); location.reload(); } });
+  UI.confirm('删除记录', '确定删除这条经期记录吗？').then((ok) => { if (ok) { Store.remove('period', rec.id); UI.toast('已删除'); window.rerenderCurrent(); } });
 }
 
 function P_field(label, input) { return UI.el('div', { class: 'field' }, [UI.el('label', {}, label), input]); }

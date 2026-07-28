@@ -32,12 +32,13 @@
       t.textContent = msg; t.classList.add('show');
       clearTimeout(this._tt); this._tt = setTimeout(() => t.classList.remove('show'), ms);
     },
-    openModal({ title = '', body = null, actions = [], onMount }) {
+    openModal({ title = '', body = null, actions = [], onMount, closeOnMask = true }) {
       const mask = document.getElementById('modal-mask');
       const box = document.getElementById('modal');
       box.innerHTML = '';
       const h = UI.el('h3', { html: title }); box.appendChild(h);
       if (body) box.appendChild(typeof body === 'string' ? UI.el('div', { html: body }) : body);
+      const close = () => mask.classList.remove('show');
       if (actions.length) {
         const act = UI.el('div', { class: 'modal-actions' });
         actions.forEach((a) => {
@@ -46,8 +47,9 @@
         });
         box.appendChild(act);
       }
+      // 点击遮罩关闭（点击遮罩空白处，而非弹窗内容）
+      mask.onclick = (e) => { if (e.target === mask && closeOnMask) close(); };
       mask.classList.add('show');
-      const close = () => mask.classList.remove('show');
       if (onMount) onMount(box, close);
       return { close };
     },
@@ -97,8 +99,10 @@
     document.getElementById('page-title').textContent = (NAV.find((n) => n.key === name) || {}).label || '小圆生活助手';
     if (window.__bjdRevoke) window.__bjdRevoke();
     if (UI.isMobile() && sidebarOpen) closeSidebar(false);
-    window.scrollTo(0, 0);
   }
+
+  // 供各模块在数据变更后做局部重渲染（替代整页 reload）
+  window.rerenderCurrent = function () { renderRoute(); };
 
   // ---------- 侧边栏 + 移动端返回手势 ----------
   let sidebarOpen = false;
@@ -119,8 +123,10 @@
     if (pop && UI.isMobile() && history.state && history.state.sb) history.back();
   }
   // 系统返回手势 / 浏览器后退 -> 关闭抽屉
-  window.addEventListener('popstate', () => {
-    if (sidebarOpen) closeSidebar(false);
+  window.addEventListener('popstate', (e) => {
+    if (sidebarOpen) { closeSidebar(false); return; }
+    // 导航后可能残留抽屉历史条目，静默跳过避免卡在同一页
+    if (e.state && e.state.sb) history.back();
   });
 
   // 左边缘滑动打开抽屉
@@ -141,8 +147,9 @@
       const btn = UI.el('button', {
         class: 'nav-item', 'data-route': n.key,
       onclick: () => {
-        if (UI.isMobile()) closeSidebar();
+        // 先设路由再关抽屉，避免 closeSidebar 的 history.back() 与 hash 赋值竞态导致跳转失效
         setRoute(n.key);
+        if (UI.isMobile()) closeSidebar(false);
       }
       }, [
         UI.el('span', { class: 'ico', html: svg(n.icon) }),
@@ -180,6 +187,10 @@
     const ps = Store.data.periodSettings;
     const body = UI.el('div', {}, [
       UI.el('div', { class: 'field' }, [
+        UI.el('label', {}, '经期时长（天，每次经期持续天数）'),
+        UI.el('input', { type: 'number', id: 'set-periodlen', value: ps.periodLen || 6, min: 2, max: 10 })
+      ]),
+      UI.el('div', { class: 'field' }, [
         UI.el('label', {}, '经期周期长度（天）'),
         UI.el('input', { type: 'number', id: 'set-cycle', value: ps.cycle, min: 20, max: 45 })
       ]),
@@ -213,13 +224,18 @@
     ]);
     UI.openModal({
       title: '设置 · 备份', body,
-      actions: [{ text: '保存', kind: 'btn-primary', onClick: (c) => {
+      actions: [
+        { text: '取消', kind: 'btn-ghost' },
+        { text: '保存', kind: 'btn-primary', onClick: (c) => {
+        const plen = parseInt(document.getElementById('set-periodlen').value, 10);
         const cyc = parseInt(document.getElementById('set-cycle').value, 10);
         const lut = parseInt(document.getElementById('set-luteal').value, 10);
+        if (plen >= 2 && plen <= 10) Store.data.periodSettings.periodLen = plen;
         if (cyc >= 20 && cyc <= 45) Store.data.periodSettings.cycle = cyc;
         if (lut >= 10 && lut <= 18) Store.data.periodSettings.luteal = lut;
         Store.save(); UI.toast('设置已保存'); c();
-      } }]
+      } }
+      ]
     });
   }
 

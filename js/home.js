@@ -19,9 +19,11 @@ window.HomeView = {
       const latestW = w.length ? w.slice().sort((a, b) => b.date.localeCompare(a.date))[0] : null;
       const dolls = Store.getArr('dolls');
       const period = window.PeriodView ? PeriodView.predict() : null;
+      const target = Store.data.targetWeight;
+      const weightLabel = (latestW && target) ? ('距目标 ' + (latestW.value - target).toFixed(1) + 'kg') : '最近体重';
 
       const stats = UI.el('div', { class: 'stat-row' }, [
-        statBox(latestW ? latestW.value + ' kg' : '—', '最近体重'),
+        statBox(latestW ? latestW.value + ' kg' : '—', weightLabel),
         statBox(period ? period.nextLabel : '—', '下次经期'),
         statBox(dolls.length + ' 只', 'BJD 娃娃')
       ]);
