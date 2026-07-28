@@ -39,8 +39,9 @@ function dollCard(d) {
   const thumb = UI.el('div', { class: 'thumb', html: svg('bjd') });
   if (d.photos && d.photos.length) thumbURL(d.photos[0], (u) => { thumb.innerHTML = ''; const img = UI.el('img', { src: u, alt: d.name }); thumb.appendChild(img); });
   card.appendChild(thumb);
+  const statusColor = { '已收到': '#6BCB9C', '定金中': '#FFC46B', '未收到': '#B0B7C3' }[d.status || '未收到'];
   card.appendChild(UI.el('div', { class: 'info' }, [
-    UI.el('div', { class: 'nm' }, d.name || '未命名'),
+    UI.el('div', { class: 'nm' }, [d.name || '未命名', d.status ? UI.el('span', { style: 'margin-left:8px;font-size:11px;padding:2px 8px;border-radius:999px;background:' + statusColor + ';color:#fff;font-weight:700;' }, d.status) : null]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '娃社：' + (d.company || '—')),
       UI.el('div', {}, '尺寸：' + (d.size || '—') + ' · 肤色：' + (d.skin || '—')),
@@ -71,8 +72,9 @@ function dollDetail(d) {
     body.appendChild(UI.el('div', { class: 'muted', style: 'padding:8px 0;' }, '暂无照片'));
   }
   body.appendChild(UI.el('hr', { class: 'sep' }));
+  const statusText = d.status || '未收到';
   const info = [
-    ['名字', d.name], ['娃社', d.company], ['尺寸', d.size], ['肤色', d.skin],
+    ['名字', d.name], ['状态', statusText], ['娃社', d.company], ['尺寸', d.size], ['肤色', d.skin],
     ['头围', d.headCirc ? d.headCirc + ' cm' : ''], ['脖围', d.neckCirc ? d.neckCirc + ' cm' : ''],
     ['价格', d.price ? '¥' + d.price : ''], ['性别', d.gender], ['入手日期', d.acquired], ['备注', d.note]
   ];
@@ -93,33 +95,9 @@ function dollDetail(d) {
   });
 }
 
-/* 照片灯箱查看器 */
+/* 照片灯箱查看器（现复用 UI.photoViewer） */
 function openPhotoViewer(photoIds, currentId) {
-  const mask = UI.el('div', { class: 'photo-viewer' });
-  let idx = Math.max(0, photoIds.indexOf(currentId));
-  const imgWrap = UI.el('div', { class: 'pv-img-wrap' });
-  const counter = UI.el('div', { class: 'pv-counter' });
-  function show() {
-    imgWrap.innerHTML = '';
-    thumbURL(photoIds[idx], (u) => {
-      imgWrap.appendChild(UI.el('img', { src: u, class: 'pv-img' }));
-    });
-    counter.textContent = (idx + 1) + ' / ' + photoIds.length;
-  }
-  show();
-  const prevBtn = UI.el('button', { class: 'pv-nav pv-prev', html: svg('back') });
-  const nextBtn = UI.el('button', { class: 'pv-nav pv-next', html: svg('chevron') });
-  const closeBtn = UI.el('button', { class: 'pv-close', html: svg('close') });
-  prevBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + photoIds.length) % photoIds.length; show(); });
-  nextBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % photoIds.length; show(); });
-  closeBtn.addEventListener('click', () => mask.remove());
-  mask.addEventListener('click', (e) => { if (e.target === mask) mask.remove(); });
-  mask.appendChild(closeBtn);
-  mask.appendChild(prevBtn);
-  mask.appendChild(imgWrap);
-  mask.appendChild(nextBtn);
-  mask.appendChild(counter);
-  document.body.appendChild(mask);
+  UI.photoViewer(photoIds, currentId);
 }
 
 function dollForm(existing) {
@@ -184,6 +162,13 @@ function dollForm(existing) {
         UI.el('option', { value: '男', selected: existing && existing.gender === '男' ? '' : null }, '男'),
         UI.el('option', { value: '其他', selected: existing && existing.gender === '其他' ? '' : null }, '其他')
       ])),
+      B_field('状态', UI.el('select', { id: 'd-status' }, [
+        UI.el('option', { value: '未收到', selected: existing && existing.status === '未收到' ? '' : null }, '未收到'),
+        UI.el('option', { value: '定金中', selected: existing && existing.status === '定金中' ? '' : null }, '定金中'),
+        UI.el('option', { value: '已收到', selected: existing && existing.status === '已收到' ? '' : null }, '已收到')
+      ]))
+    ]),
+    UI.el('div', { class: 'row' }, [
       B_field('入手日期', UI.el('input', { type: 'date', id: 'd-acquired', value: existing ? (existing.acquired || '') : '' }))
     ]),
     B_field('备注', UI.el('textarea', { id: 'd-note', rows: '2', placeholder: '可选' }, existing ? (existing.note || '') : '')),
@@ -206,6 +191,7 @@ function dollForm(existing) {
           neckCirc: document.getElementById('d-neckcirc').value || '',
           price: document.getElementById('d-price').value || '',
           gender: document.getElementById('d-gender').value,
+          status: document.getElementById('d-status').value,
           acquired: document.getElementById('d-acquired').value,
           note: document.getElementById('d-note').value.trim(),
           photos: localPhotos.slice()

@@ -8,8 +8,11 @@ window.PeriodView = {
       // 当前状态卡
       wrap.appendChild(buildStatusCard());
 
-      // 记录按钮
-      wrap.appendChild(UI.el('button', { class: 'btn btn-primary btn-block', style: 'margin-bottom:14px;', onclick: () => periodForm(null) }, [svg('add'), '记录一次经期']));
+      // 记录按钮 + 经期设置
+      wrap.appendChild(UI.el('div', { style: 'display:flex;gap:10px;margin-bottom:14px;' }, [
+        UI.el('button', { class: 'btn btn-primary btn-block', style: 'flex:1;', onclick: () => periodForm(null) }, [svg('add'), '记录一次经期']),
+        UI.el('button', { class: 'btn', style: 'flex:none;', onclick: () => window.openPeriodSettings() }, [svg('settings'), '经期设置'])
+      ]));
 
       // 日历
       const calCard = UI.el('div', { class: 'card' });

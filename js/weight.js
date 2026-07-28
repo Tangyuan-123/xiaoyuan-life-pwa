@@ -121,14 +121,27 @@ function renderWeight(root) {
   if (recs.length) {
     const list = UI.el('div', { class: 'list' });
     recs.slice().reverse().forEach((r) => {
-      list.appendChild(UI.el('div', { class: 'list-row' }, [
+      const row = UI.el('div', { class: 'list-row' }, [
         UI.el('div', { class: 'lr-main' }, [
           UI.el('div', { class: 'lr-title' }, r.value + ' kg'),
           UI.el('div', { class: 'lr-sub' }, UI.fmtMD(r.date) + ' · ' + UI.weekday(r.date) + (r.note ? ' · ' + r.note : ''))
         ]),
         UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: () => weightForm(r) }),
         UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: () => delWeight(r) })
-      ]));
+      ]);
+      if (r.photos && r.photos.length) {
+        const strip = UI.el('div', { class: 'photo-strip', style: 'margin-top:8px;padding-left:0;' });
+        r.photos.forEach((pid) => {
+          DB.getURL(pid).then((u) => {
+            if (!u) return;
+            const ph = UI.el('div', { class: 'ph', style: 'width:56px;height:56px;flex:0 0 56px;cursor:pointer;' }, UI.el('img', { src: u }));
+            ph.addEventListener('click', () => UI.photoViewer(r.photos.slice(), pid));
+            strip.appendChild(ph);
+          });
+        });
+        row.querySelector('.lr-main').appendChild(strip);
+      }
+      list.appendChild(row);
     });
     root.appendChild(list);
   } else {
@@ -138,10 +151,50 @@ function renderWeight(root) {
 
 function weightForm(rec) {
   const isEdit = !!rec;
+  let localPhotos = rec && rec.photos ? rec.photos.slice() : [];
+
+  const photoBox = UI.el('div', {});
+  const fileInput = UI.el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+  fileInput.addEventListener('change', async () => {
+    for (const f of Array.from(fileInput.files)) {
+      try {
+        const id = Store.uid();
+        const blob = await DB.fileToBlob(f, 1000, 0.82);
+        await DB.put(id, blob);
+        localPhotos.push(id);
+      } catch (e) { UI.toast('图片读取失败'); }
+    }
+    fileInput.value = '';
+    refreshStrip();
+  });
+
+  function refreshStrip() {
+    photoBox.innerHTML = '';
+    if (localPhotos.length) {
+      const strip = UI.el('div', { class: 'photo-strip' });
+      localPhotos.forEach((pid, idx) => {
+        DB.getURL(pid).then((u) => {
+          if (!u) return;
+          const ph = UI.el('div', { class: 'ph', style: 'cursor:pointer;' }, [
+            UI.el('img', { src: u }),
+            UI.el('button', { class: 'del', html: svg('close'), onclick: (e) => { e.stopPropagation(); localPhotos.splice(idx, 1); DB.del(pid); refreshStrip(); } })
+          ]);
+          ph.addEventListener('click', () => UI.photoViewer(localPhotos.slice(), pid));
+          strip.appendChild(ph);
+        });
+      });
+      photoBox.appendChild(strip);
+    }
+    photoBox.appendChild(UI.el('button', { class: 'btn btn-sm', style: 'margin-top:8px;', onclick: () => fileInput.click() }, [svg('camera'), '添加对比照']));
+    photoBox.appendChild(fileInput);
+  }
+  refreshStrip();
+
   const body = UI.el('div', {}, [
     W_field('日期', UI.el('input', { type: 'date', id: 'w-date', value: rec ? rec.date : UI.today(), max: UI.today() })),
     W_field('体重 (kg)', UI.el('input', { type: 'number', id: 'w-val', step: '0.1', min: '20', max: '300', value: rec ? rec.value : '', placeholder: '例如 52.5' })),
-    W_field('备注（可选）', UI.el('input', { type: 'text', id: 'w-note', value: rec ? (rec.note || '') : '', placeholder: '心情 / 状态' }))
+    W_field('备注（可选）', UI.el('input', { type: 'text', id: 'w-note', value: rec ? (rec.note || '') : '', placeholder: '心情 / 状态' })),
+    UI.el('div', { class: 'field' }, [UI.el('label', {}, '照片（可选，阶段对比照）'), photoBox])
   ]);
   UI.openModal({
     title: isEdit ? '编辑体重' : '记录体重', body,
@@ -150,8 +203,14 @@ function weightForm(rec) {
       { text: isEdit ? '保存' : '添加', kind: 'btn-primary', onClick: (c) => {
         const v = parseFloat(document.getElementById('w-val').value);
         if (!v || v <= 0) { UI.toast('请输入有效体重'); return; }
-        const obj = { date: document.getElementById('w-date').value || UI.today(), value: v, note: document.getElementById('w-note').value.trim() };
-        if (isEdit) Store.update('weight', rec.id, obj); else Store.add('weight', obj);
+        const obj = { date: document.getElementById('w-date').value || UI.today(), value: v, note: document.getElementById('w-note').value.trim(), photos: localPhotos.slice() };
+        if (isEdit) {
+          const removed = (rec.photos || []).filter((p) => !localPhotos.includes(p));
+          removed.forEach((p) => DB.del(p));
+          Store.update('weight', rec.id, obj);
+        } else {
+          Store.add('weight', obj);
+        }
         UI.toast('已保存'); c(); window.rerenderCurrent();
       } }
     ]

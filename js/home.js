@@ -49,6 +49,15 @@ window.HomeView = {
       });
       wrap.appendChild(cards);
 
+      // 数据备份提示
+      wrap.appendChild(UI.el('div', { class: 'card', style: 'margin-top:14px;background:#f8f9fb;border-color:#e8eaed;' }, [
+        UI.el('div', { class: 'card-title' }, [svg('download'), '数据备份']),
+        UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:12px;' }, '小圆助手所有数据都保存在本机浏览器。换设备、清缓存或重新安装前，建议先导出备份。'),
+        UI.el('div', { style: 'display:flex;gap:10px;' }, [
+          UI.el('button', { class: 'btn', onclick: () => window.openBackup() }, '导出 / 导入备份')
+        ])
+      ]));
+
       root.appendChild(wrap);
     });
   }

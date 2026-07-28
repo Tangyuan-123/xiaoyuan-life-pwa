@@ -63,6 +63,32 @@
           ]
         });
       });
+    },
+    // 通用照片灯箱（BJD、减肥对比照共用）
+    photoViewer(photoIds, currentId) {
+      const urls = [];
+      function cleanup() { urls.forEach((u) => URL.revokeObjectURL(u)); }
+      const mask = UI.el('div', { class: 'photo-viewer' });
+      let idx = Math.max(0, photoIds.indexOf(currentId));
+      const imgWrap = UI.el('div', { class: 'pv-img-wrap' });
+      const counter = UI.el('div', { class: 'pv-counter' });
+      function show() {
+        imgWrap.innerHTML = '';
+        DB.getURL(photoIds[idx]).then((u) => {
+          if (u) { urls.push(u); imgWrap.appendChild(UI.el('img', { src: u, class: 'pv-img' })); }
+        });
+        counter.textContent = (idx + 1) + ' / ' + photoIds.length;
+      }
+      show();
+      const prevBtn = UI.el('button', { class: 'pv-nav pv-prev', html: svg('back') });
+      const nextBtn = UI.el('button', { class: 'pv-nav pv-next', html: svg('chevron') });
+      const closeBtn = UI.el('button', { class: 'pv-close', html: svg('close') });
+      prevBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + photoIds.length) % photoIds.length; show(); });
+      nextBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % photoIds.length; show(); });
+      closeBtn.addEventListener('click', () => { cleanup(); mask.remove(); });
+      mask.addEventListener('click', (e) => { if (e.target === mask) { cleanup(); mask.remove(); } });
+      mask.appendChild(closeBtn); mask.appendChild(prevBtn); mask.appendChild(imgWrap); mask.appendChild(nextBtn); mask.appendChild(counter);
+      document.body.appendChild(mask);
     }
   };
   window.UI = UI;
@@ -164,7 +190,6 @@
       else sb.classList.toggle('collapsed');
     });
     scrim.addEventListener('click', () => closeSidebar());
-    document.getElementById('settings-btn').addEventListener('click', openSettings);
 
       // 注册视图（Period 需先于 Home，因为首页依赖其预测方法）
       if (window.PeriodView) PeriodView.register();
@@ -182,7 +207,8 @@
     }
   }
 
-  function openSettings() {
+  // 经期设置（仅经期助手页面调用）
+  window.openPeriodSettings = function () {
     if (UI.isMobile() && sidebarOpen) closeSidebar(false);
     const ps = Store.data.periodSettings;
     const body = UI.el('div', {}, [
@@ -197,8 +223,30 @@
       UI.el('div', { class: 'field' }, [
         UI.el('label', {}, '黄体期长度（天，排卵期后到下次经期前）'),
         UI.el('input', { type: 'number', id: 'set-luteal', value: ps.luteal, min: 10, max: 18 })
-      ]),
-      UI.el('hr', { class: 'sep' }),
+      ])
+    ]);
+    UI.openModal({
+      title: '经期设置', body,
+      actions: [
+        { text: '取消', kind: 'btn-ghost' },
+        { text: '保存', kind: 'btn-primary', onClick: (c) => {
+          const plen = parseInt(document.getElementById('set-periodlen').value, 10);
+          const cyc = parseInt(document.getElementById('set-cycle').value, 10);
+          const lut = parseInt(document.getElementById('set-luteal').value, 10);
+          if (plen >= 2 && plen <= 10) Store.data.periodSettings.periodLen = plen;
+          if (cyc >= 20 && cyc <= 45) Store.data.periodSettings.cycle = cyc;
+          if (lut >= 10 && lut <= 18) Store.data.periodSettings.luteal = lut;
+          Store.save(); UI.toast('设置已保存'); c(); window.rerenderCurrent();
+        } }
+      ]
+    });
+  };
+
+  // 备份与恢复（首页独立入口）
+  window.openBackup = function () {
+    if (UI.isMobile() && sidebarOpen) closeSidebar(false);
+    const body = UI.el('div', {}, [
+      UI.el('p', { class: 'muted', style: 'margin-bottom:14px;' }, '小圆助手所有数据都保存在本机浏览器。换设备、清缓存或重新安装前，建议先导出备份。'),
       UI.el('div', { class: 'modal-actions' }, [
         UI.el('button', {
           class: 'btn', onclick: async () => {
@@ -228,7 +276,6 @@
                   const photos = parsed.__photos || [];
                   delete parsed.__photos;
                   Store.importJSON(JSON.stringify(parsed));
-                  // 还原照片到 IndexedDB
                   let okCount = 0;
                   await Promise.all(photos.map(async (p) => {
                     try { const b = await dataURLToBlob(p.dataUrl); await DB.put(p.id, b); okCount++; } catch (e) { /* 单张失败忽略 */ }
@@ -244,22 +291,8 @@
         }, '导入备份')
       ])
     ]);
-    UI.openModal({
-      title: '设置 · 备份', body,
-      actions: [
-        { text: '取消', kind: 'btn-ghost' },
-        { text: '保存', kind: 'btn-primary', onClick: (c) => {
-        const plen = parseInt(document.getElementById('set-periodlen').value, 10);
-        const cyc = parseInt(document.getElementById('set-cycle').value, 10);
-        const lut = parseInt(document.getElementById('set-luteal').value, 10);
-        if (plen >= 2 && plen <= 10) Store.data.periodSettings.periodLen = plen;
-        if (cyc >= 20 && cyc <= 45) Store.data.periodSettings.cycle = cyc;
-        if (lut >= 10 && lut <= 18) Store.data.periodSettings.luteal = lut;
-        Store.save(); UI.toast('设置已保存'); c();
-      } }
-      ]
-    });
-  }
+    UI.openModal({ title: '数据备份与恢复', body, actions: [{ text: '关闭', kind: 'btn-ghost' }] });
+  };
 
   function blobToDataURL(blob) {
     return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
