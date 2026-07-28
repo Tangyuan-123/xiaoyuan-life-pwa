@@ -53,22 +53,46 @@ window.PeriodView = {
   }
 };
 
+/* 基于历史记录统计周期与经期时长（智能预测核心） */
+function historyStats(recs) {
+  const starts = recs.map((r) => r.start).sort();
+  const settings = Store.data.periodSettings;
+  // 相邻经期间隔
+  const intervals = [];
+  for (let i = 1; i < starts.length; i++) intervals.push(UI.diffDays(starts[i - 1], starts[i]));
+  // 周期长度：有历史时用中位数（抗异常值）+ 与设置值按数据量平滑混合；始终限制在 21~45 天
+  let cycle = settings.cycle;
+  if (intervals.length) {
+    const si = intervals.slice().sort((a, b) => a - b);
+    const med = si.length % 2 ? si[(si.length - 1) / 2] : Math.round((si[si.length / 2 - 1] + si[si.length / 2]) / 2);
+    const w = Math.min(1, intervals.length / 3); // 历史≥3次时完全依赖数据
+    cycle = med * w + settings.cycle * (1 - w);
+  }
+  cycle = Math.max(21, Math.min(45, Math.round(cycle)));
+  // 经期时长：优先取历史平均值，否则用设置值
+  let periodLen = settings.periodLen || 6;
+  const lens = recs.filter((r) => r.end).map((r) => UI.diffDays(r.start, r.end) + 1);
+  if (lens.length) periodLen = Math.round(lens.reduce((a, b) => a + b, 0) / lens.length);
+  periodLen = Math.max(2, Math.min(12, periodLen));
+  return { cycle, periodLen, lastStart: starts[starts.length - 1] };
+}
+
 /* 阶段算法 */
 function periodPhase(d) {
   const recs = Store.getArr('period').slice().sort((a, b) => a.start.localeCompare(b.start));
   if (!recs.length) return null;
-  const cycle = Store.data.periodSettings.cycle;
+  const s = historyStats(recs);
+  const cycle = s.cycle;
   const luteal = Store.data.periodSettings.luteal;
-  const menstruationLen = Store.data.periodSettings.periodLen || 6;
+  const menstruationLen = s.periodLen;
   const ovulationDay = cycle - luteal;
 
   // 1) 已记录的经期
   for (const r of recs) {
-    const end = r.end || UI.addDays(r.start, (Store.data.periodSettings.periodLen || 6) - 1);
+    const end = r.end || UI.addDays(r.start, menstruationLen - 1);
     if (d >= r.start && d <= end) return { type: 'menstruation', recorded: true, start: d === r.start };
   }
-  const last = recs[recs.length - 1];
-  const lastStart = last.start;
+  const lastStart = s.lastStart;
   const diff = UI.diffDays(lastStart, d);
   const cycles = Math.floor(diff / cycle);
   const cand = UI.addDays(lastStart, cycles * cycle); // 该周期起点
@@ -88,12 +112,12 @@ function periodPhase(d) {
 }
 
 function nextPeriodStart(recs) {
-  const cycle = Store.data.periodSettings.cycle;
-  const last = recs[recs.length - 1];
-  const diff = UI.diffDays(last.start, UI.today());
-  let ahead = Math.ceil(diff / cycle);
-  if (ahead < 1) ahead = 1;
-  return UI.addDays(last.start, ahead * cycle);
+  if (!recs.length) return null;
+  const s = historyStats(recs);
+  let next = UI.addDays(s.lastStart, s.cycle);
+  // 若预测日已过（如刚结束一次经期），顺延周期直到落在未来
+  while (UI.diffDays(UI.today(), next) < 0) next = UI.addDays(next, s.cycle);
+  return next;
 }
 
 function buildStatusCard() {
@@ -105,6 +129,7 @@ function buildStatusCard() {
     ]);
   }
   const today = UI.today();
+  const s = historyStats(recs);
   const ph = periodPhase(today) || { type: 'follicular' };
   const next = nextPeriodStart(recs);
   const daysLeft = UI.diffDays(today, next);
@@ -127,8 +152,8 @@ function buildStatusCard() {
   card.appendChild(UI.el('div', { class: 'stat-row', style: 'margin-top:14px;' }, [
     P_statBox('还剩 ' + (daysLeft >= 0 ? daysLeft : 0) + ' 天', '距下次经期'),
     P_statBox(UI.fmtMD(next), '预计 ' + UI.weekday(next) + ' 来'),
-    P_statBox((Store.data.periodSettings.periodLen || 6) + ' 天', '经期时长'),
-    P_statBox(Store.data.periodSettings.cycle + ' 天', '周期长度')
+    P_statBox(s.periodLen + ' 天', '经期时长'),
+    P_statBox(s.cycle + ' 天', '周期长度')
   ]));
   return card;
 }
