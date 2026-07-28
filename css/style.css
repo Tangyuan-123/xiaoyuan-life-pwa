@@ -268,13 +268,13 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .phase-legend .ph { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-soft); }
 
 /* BJD 网格 */
-.bjd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.bjd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .bjd-card { background: var(--surface); border-radius: var(--radius-sm); overflow: hidden; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
 .bjd-card .thumb { width: 100%; aspect-ratio: 1/1; background: var(--primary-soft); display: grid; place-items: center; color: var(--primary); position: relative; }
 .bjd-card .thumb img { width: 100%; height: 100%; object-fit: cover; }
-.bjd-card .info { padding: 12px; }
-.bjd-card .info .nm { font-weight: 700; font-size: 15px; }
-.bjd-card .info .meta { font-size: 12px; color: var(--text-soft); margin-top: 4px; line-height: 1.6; }
+.bjd-card .info { padding: 10px; }
+.bjd-card .info .nm { font-weight: 700; font-size: 14px; }
+.bjd-card .info .meta { font-size: 11px; color: var(--text-soft); margin-top: 3px; line-height: 1.5; }
 .bjd-card .acts { display: flex; gap: 8px; padding: 0 12px 12px; }
 .bjd-card .acts .btn { flex: 1; }
 

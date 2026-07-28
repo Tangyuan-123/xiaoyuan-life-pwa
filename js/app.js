@@ -3,10 +3,11 @@
   // ---------- 通用 UI 工具 ----------
   const UI = {
     isMobile() { return window.matchMedia('(max-width: 860px)').matches; },
-    today() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); },
+    today() { return this.fmtYMD(new Date()); },
     parseDate(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); },
+    fmtYMD(d) { const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return y + '-' + m + '-' + day; },
     fmtMD(s) { const d = this.parseDate(s); return (d.getMonth() + 1) + '月' + d.getDate() + '日'; },
-    addDays(s, n) { const d = this.parseDate(s); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); },
+    addDays(s, n) { const d = this.parseDate(s); d.setDate(d.getDate() + n); return this.fmtYMD(d); },
     diffDays(a, b) { return Math.round((this.parseDate(b) - this.parseDate(a)) / 86400000); },
     daysFromToday(s) { return this.diffDays(this.today(), s); },
     weekday(s) { return ['日', '一', '二', '三', '四', '五', '六'][this.parseDate(s).getDay()]; },

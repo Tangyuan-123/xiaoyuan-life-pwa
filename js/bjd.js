@@ -213,12 +213,7 @@ function dollCard(d) {
       UI.el('div', {}, '价格：' + (d.price ? '¥' + d.price : '—'))
     ])
   ]));
-  card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'btn btn-sm', onclick: () => dollDetail(d) }, '查看'),
-    UI.el('button', { class: 'btn btn-sm', onclick: () => dollForm(d) }, [svg('edit')]),
-    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delDoll(d); } })
-  ]));
-  card.addEventListener('click', (e) => { if (e.target.closest('.acts')) return; dollDetail(d); });
+  card.addEventListener('click', () => dollDetail(d));
   return card;
 }
 

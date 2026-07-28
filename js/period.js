@@ -72,10 +72,8 @@ function historyStats(recs) {
     cycle = med * w + settings.cycle * (1 - w);
   }
   cycle = Math.max(21, Math.min(45, Math.round(cycle)));
-  // 经期时长：优先取历史平均值，否则用设置值
+  // 经期时长：以用户在「经期设置」里明确设置的「经期时长」为准（用户主导），不再用历史记录均值覆盖
   let periodLen = settings.periodLen || 6;
-  const lens = recs.filter((r) => r.end).map((r) => UI.diffDays(r.start, r.end) + 1);
-  if (lens.length) periodLen = Math.round(lens.reduce((a, b) => a + b, 0) / lens.length);
   periodLen = Math.max(2, Math.min(12, periodLen));
   return { cycle, periodLen, lastStart: starts[starts.length - 1] };
 }

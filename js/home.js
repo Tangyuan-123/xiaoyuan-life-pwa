@@ -26,15 +26,12 @@ window.HomeView = {
       const periodRecs = Store.getArr('period');
       const nextP = periodRecs.length ? nextPeriodStart(periodRecs) : null;
       const daysLeft = nextP ? UI.diffDays(UI.today(), nextP) : null;
-      const monthStr = UI.today().slice(0, 7);
-      const monthCount = w.filter((r) => r.date.slice(0, 7) === monthStr).length;
       const goalText = (latestW && target) ? (latestW.value - target > 0 ? '还差 ' + (latestW.value - target).toFixed(1) + ' kg' : '已达标 🎉') : '未设目标';
       const overview = UI.el('div', { class: 'card' }, [
         UI.el('div', { class: 'card-title' }, [svg('flower'), '今日概览']),
         UI.el('div', { class: 'stat-row' }, [
           statBox(daysLeft == null ? '—' : (daysLeft >= 0 ? daysLeft + ' 天' : '进行中'), '距下次经期'),
-          statBox(goalText, '距目标体重'),
-          statBox(monthCount + ' 天', '本月打卡')
+          statBox(goalText, '距目标体重')
         ])
       ]);
       wrap.appendChild(overview);
