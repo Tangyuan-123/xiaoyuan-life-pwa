@@ -67,8 +67,14 @@
   <script src="js/weight.js"></script>
   <script src="js/period.js"></script>
   <script src="js/bjd.js"></script>
-  <script src="js/app.js"></script>
-  <script>
+    <script src="js/app.js"></script>
+    <script>
+      // 注册 Service Worker（仅在 https 下，便于手机安装到主屏 + 离线可用；localhost 开发不注册）
+      if ('serviceWorker' in navigator && location.protocol === 'https:') {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      }
+    </script>
+    <script>
     // 侧边栏菜单/设置图标
     document.getElementById('menu-btn').innerHTML = svg('menu');
     document.getElementById('settings-btn').innerHTML = svg('settings');
