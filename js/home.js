@@ -22,12 +22,22 @@ window.HomeView = {
       const target = Store.data.targetWeight;
       const weightLabel = (latestW && target) ? ('距目标 ' + (latestW.value - target).toFixed(1) + 'kg') : '最近体重';
 
-      const stats = UI.el('div', { class: 'stat-row' }, [
-        statBox(latestW ? latestW.value + ' kg' : '—', weightLabel),
-        statBox(period ? period.nextLabel : '—', '下次经期'),
-        statBox(dolls.length + ' 只', 'BJD 娃娃')
+      // 今日概览
+      const periodRecs = Store.getArr('period');
+      const nextP = periodRecs.length ? nextPeriodStart(periodRecs) : null;
+      const daysLeft = nextP ? UI.diffDays(UI.today(), nextP) : null;
+      const monthStr = UI.today().slice(0, 7);
+      const monthCount = w.filter((r) => r.date.slice(0, 7) === monthStr).length;
+      const goalText = (latestW && target) ? (latestW.value - target > 0 ? '还差 ' + (latestW.value - target).toFixed(1) + ' kg' : '已达标 🎉') : '未设目标';
+      const overview = UI.el('div', { class: 'card' }, [
+        UI.el('div', { class: 'card-title' }, [svg('flower'), '今日概览']),
+        UI.el('div', { class: 'stat-row' }, [
+          statBox(daysLeft == null ? '—' : (daysLeft >= 0 ? daysLeft + ' 天' : '进行中'), '距下次经期'),
+          statBox(goalText, '距目标体重'),
+          statBox(monthCount + ' 天', '本月打卡')
+        ])
       ]);
-      wrap.appendChild(stats);
+      wrap.appendChild(overview);
 
       // 功能卡
       const cards = UI.el('div', { class: 'home-grid', style: 'margin-top:16px;' });

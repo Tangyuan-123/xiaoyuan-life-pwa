@@ -107,9 +107,10 @@ function renderWeight(root) {
 
   // 图表
   if (recs.length >= 2) {
+    const refLines = (target != null) ? [{ value: target, label: '目标 ' + target + 'kg', color: '#7A4DD6' }] : null;
     const card = UI.el('div', { class: 'card' }, [
       UI.el('div', { class: 'card-title' }, [document.createTextNode('体重趋势'), UI.el('span', { class: 'badge' }, 'kg')]),
-      chartCard([{ name: '体重', color: '#FF6B9D', points: recs.map((r) => ({ x: r.date, y: r.value })) }], 'kg', (s) => buildWeightFS(s))
+      chartCard([{ name: '体重', color: '#FF6B9D', points: recs.map((r) => ({ x: r.date, y: r.value })) }], 'kg', (s) => buildWeightFS(s), refLines)
     ]);
     root.appendChild(card);
   }
@@ -399,15 +400,15 @@ function delCirc(rec) {
 }
 
 /* ---------- 图表卡片 + 全屏 ---------- */
-function chartCard(series, unit, fsBuilder) {
+function chartCard(series, unit, fsBuilder, refLines) {
   const wrap = UI.el('div', { class: 'chart-wrap' });
-  wrap.appendChild(buildChartSVG(series, unit));
+  wrap.appendChild(buildChartSVG(series, unit, refLines));
   wrap.appendChild(UI.el('button', { class: 'icon-btn fullscreen-btn', title: '全屏横屏', html: svg('fullscreen'), onclick: () => openFullscreen('趋势图 · ' + unit, series, unit) }));
   return wrap;
 }
-function buildChartSVG(series, unit) {
+function buildChartSVG(series, unit, refLines) {
   return Chart.render({
-    width: 640, height: 300, series, yUnit: unit,
+    width: 640, height: 300, series, yUnit: unit, refLines,
     yFmt: (v) => v.toFixed(1) + (unit || ''),
     xFmt: (x) => (typeof x === 'string' ? x.slice(5) : '')
   });

@@ -26,6 +26,7 @@ const Chart = (function () {
     // 汇总所有点用于范围
     let allY = [];
     opts.series.forEach((s) => s.points.forEach((p) => { if (p.y != null) allY.push(p.y); }));
+    if (opts.refLines) opts.refLines.forEach((rl) => { if (rl.value != null) allY.push(rl.value); });
     if (!allY.length) allY = [0, 1];
 
     let yMin = Math.min(...allY), yMax = Math.max(...allY);
@@ -82,6 +83,19 @@ const Chart = (function () {
         svg.appendChild(c);
       });
     });
+
+    // 参考线（如目标体重）：虚线 + 标签
+    if (opts.refLines) {
+      opts.refLines.forEach((rl) => {
+        if (rl.value == null) return;
+        const y = yAt(rl.value);
+        if (y < padT || y > padT + plotH) return;
+        svg.appendChild(el('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: rl.color || '#999', 'stroke-width': 1.6, 'stroke-dasharray': '5 4' }));
+        const t = el('text', { x: W - padR - 4, y: y - 4, 'text-anchor': 'end', 'font-size': 11, 'font-weight': '700', fill: rl.color || '#999' });
+        t.textContent = rl.label || (rl.value + (opts.yUnit || ''));
+        svg.appendChild(t);
+      });
+    }
 
     return svg;
   }

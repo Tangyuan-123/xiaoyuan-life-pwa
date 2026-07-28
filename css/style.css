@@ -335,6 +335,13 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .tiny { font-size: 12px; }
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
+/* ---------- 分类统计（BJD） ---------- */
+.cat-stat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.cat-stat-row .cs-name { width: 70px; flex: none; font-size: 13px; font-weight: 600; }
+.cat-stat-row .cs-bar-wrap { flex: 1; height: 10px; background: var(--primary-soft); border-radius: 999px; overflow: hidden; }
+.cat-stat-row .cs-bar { height: 100%; background: linear-gradient(90deg, #C9A7FF, #9B6DFF); border-radius: 999px; transition: width .35s ease; }
+.cat-stat-row .cs-val { width: 80px; flex: none; text-align: right; font-size: 13px; font-weight: 700; color: var(--primary-deep); }
+
 /* ---------- 响应式：移动端侧边栏抽屉 ---------- */
 @media (max-width: 860px) {
   #sidebar {

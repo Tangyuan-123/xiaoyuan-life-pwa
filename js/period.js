@@ -123,6 +123,16 @@ function nextPeriodStart(recs) {
   return next;
 }
 
+/* 下一次排卵日（用于易孕期预测）：取 >= 今天 的最近一次排卵 */
+function nextOvulation(recs) {
+  if (!recs.length) return null;
+  const s = historyStats(recs);
+  const luteal = Store.data.periodSettings.luteal;
+  let ov = UI.addDays(s.lastStart, s.cycle - luteal);
+  while (UI.diffDays(UI.today(), ov) < 0) ov = UI.addDays(ov, s.cycle);
+  return ov;
+}
+
 function buildStatusCard() {
   const recs = Store.getArr('period');
   if (!recs.length) {
@@ -152,11 +162,18 @@ function buildStatusCard() {
       UI.el('div', { class: 'muted', style: 'font-size:13px;' }, phaseInfo.d)
     ])
   ]));
+  // 排卵 / 易孕期预测
+  const ov = nextOvulation(recs);
+  const fertileStart = ov ? UI.addDays(ov, -5) : null;
   card.appendChild(UI.el('div', { class: 'stat-row', style: 'margin-top:14px;' }, [
     P_statBox('还剩 ' + (daysLeft >= 0 ? daysLeft : 0) + ' 天', '距下次经期'),
     P_statBox(UI.fmtMD(next), '预计 ' + UI.weekday(next) + ' 来'),
     P_statBox(s.periodLen + ' 天', '经期时长'),
     P_statBox(s.cycle + ' 天', '周期长度')
+  ]));
+  card.appendChild(UI.el('div', { class: 'stat-row', style: 'margin-top:10px;' }, [
+    P_statBox(ov ? UI.fmtMD(ov) : '—', '预计排卵日'),
+    P_statBox((fertileStart && ov) ? (UI.fmtMD(fertileStart) + '~' + UI.fmtMD(ov)) : '—', '易孕期')
   ]));
   return card;
 }
