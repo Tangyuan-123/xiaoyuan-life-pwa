@@ -148,20 +148,21 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .row > * { flex: 1; min-width: 0; }
 
 /* 主页功能卡 */
-.home-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.home-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .home-card {
-  background: var(--surface); border-radius: var(--radius); padding: 20px 18px;
-  box-shadow: var(--shadow); border: 1px solid var(--border); text-align: left;
-  display: flex; flex-direction: column; gap: 10px; transition: transform .14s, box-shadow .2s;
+  background: var(--surface); border-radius: var(--radius-sm); padding: 12px 8px;
+  box-shadow: var(--shadow-sm); border: 1px solid var(--border); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; transition: transform .14s, box-shadow .2s;
 }
-.home-card:active { transform: scale(.98); }
+.home-card:active { transform: scale(.96); }
 .home-card .hc-ico {
-  width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; color: #fff;
+  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #fff;
   box-shadow: var(--shadow-sm);
 }
-.home-card .hc-title { font-size: 17px; font-weight: 700; }
-.home-card .hc-desc { font-size: 12.5px; color: var(--text-soft); }
-.home-card .hc-stat { margin-top: 2px; font-size: 13px; font-weight: 700; color: var(--primary-deep); }
+.home-card .hc-ico svg { width: 22px; height: 22px; }
+.home-card .hc-title { font-size: 13px; font-weight: 700; line-height: 1.2; }
+.home-card .hc-desc { display: none; }
+.home-card .hc-stat { margin-top: 0; font-size: 11px; font-weight: 700; color: var(--primary-deep); line-height: 1.2; }
 
 /* 列表 */
 .list { display: flex; flex-direction: column; gap: 10px; }
@@ -300,7 +301,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
     transform: translateX(-100%); box-shadow: var(--shadow);
   }
   #sidebar.open { transform: translateX(0); }
-  .home-grid { grid-template-columns: 1fr; }
+  .home-grid { grid-template-columns: repeat(3, 1fr); }
   .content { padding: 14px; }
 }
 @media (min-width: 861px) {
