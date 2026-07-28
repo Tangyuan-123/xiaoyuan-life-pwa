@@ -5,6 +5,8 @@ const Store = (function () {
   const defaults = {
     weight: [],            // [{id, date, value, note}]
     targetWeight: null,    // 目标体重(kg)
+    initialWeight: null,   // 初始体重(kg)，用于计算减肥进度；未设时取最早一条记录
+    targetDate: null,      // 目标日期(YYYY-MM-DD)，期望在此日期前达成目标
     height: null,          // 身高(cm)
     circGroups: [          // 围度分组
       { id: 'g_chest', name: '胸围', color: '#FF6B9D' },

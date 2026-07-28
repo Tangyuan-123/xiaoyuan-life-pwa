@@ -32,24 +32,54 @@ window.WeightView = {
 function renderWeight(root) {
   const recs = Store.getArr('weight').slice().sort((a, b) => a.date.localeCompare(b.date));
 
-  // 目标体重卡片
+  // 减肥计划卡片（目标体重 / 初始体重 / 目标日期 / 进度）
   const target = Store.data.targetWeight;
   const lastRec = recs.length ? recs[recs.length - 1] : null;
+  const startWeight = Store.data.initialWeight != null ? Store.data.initialWeight : (recs.length ? recs[0].value : null);
+  // 进度计算
+  let progress = null; // 0~100
+  if (target != null && startWeight != null && lastRec && startWeight > target) {
+    const lost = startWeight - lastRec.value;
+    const total = startWeight - target;
+    progress = Math.max(0, Math.min(100, Math.round((lost / total) * 100)));
+  }
   const targetCard = UI.el('div', { class: 'card', style: 'margin-bottom:14px;' }, [
-    UI.el('div', { class: 'card-title' }, [svg('target'), '目标体重']),
+    UI.el('div', { class: 'card-title' }, [svg('target'), '减肥计划']),
     target ? (() => {
       const remaining = lastRec ? (lastRec.value - target) : null;
       const done = remaining != null && remaining <= 0;
-      return UI.el('div', { style: 'display:flex;align-items:center;gap:14px;' }, [
-        UI.el('div', { style: 'flex:1;' }, [
-          UI.el('div', { style: 'font-size:20px;font-weight:800;' }, target + ' kg'),
-          UI.el('div', { class: 'muted', style: 'font-size:13px;' }, done ? '已达成目标，太棒了 🎉' : (remaining != null ? '还差 ' + remaining.toFixed(1) + ' kg' : '记录体重后显示进度'))
-        ]),
-        UI.el('button', { class: 'btn btn-sm', onclick: () => setTargetWeight() }, '修改目标')
+      const block = UI.el('div', { style: 'flex:1;' }, [
+        UI.el('div', { style: 'font-size:20px;font-weight:800;' },
+          target + ' kg' + (startWeight != null ? ' · 从 ' + startWeight + ' kg' : '')),
+        UI.el('div', { class: 'muted', style: 'font-size:13px;margin-bottom:8px;' },
+          done ? '已达成目标，太棒了 🎉' : (remaining != null ? '还差 ' + remaining.toFixed(1) + ' kg' : '记录体重后显示进度'))
+      ]);
+      // 进度条
+      if (progress != null) {
+        block.appendChild(UI.el('div', { class: 'progress', style: 'margin-bottom:6px;' }, [
+          UI.el('div', { class: 'progress-fill', style: 'width:' + (done ? 100 : progress) + '%;' })
+        ]));
+        block.appendChild(UI.el('div', { style: 'display:flex;justify-content:space-between;font-size:12px;' }, [
+          UI.el('span', { class: 'muted' }, '减肥进度'),
+          UI.el('span', { style: 'font-weight:800;color:var(--primary-deep);' }, (done ? 100 : progress) + '%')
+        ]));
+      }
+      // 目标日期
+      if (Store.data.targetDate) {
+        const diff = UI.diffDays(UI.today(), Store.data.targetDate);
+        const daily = (remaining != null && remaining > 0 && diff > 0) ? (remaining / diff) : null;
+        block.appendChild(UI.el('div', { class: 'muted', style: 'font-size:12.5px;margin-top:8px;' },
+          diff > 0
+            ? '目标日期 ' + UI.fmtMD(Store.data.targetDate) + ' · 还剩 ' + diff + ' 天' + (daily != null ? ' · 日均需减 ' + daily.toFixed(2) + ' kg' : '')
+            : '目标日期 ' + UI.fmtMD(Store.data.targetDate) + (diff === 0 ? ' · 就是今天！' : ' · 已过去 ' + (-diff) + ' 天')));
+      }
+      return UI.el('div', { style: 'display:flex;align-items:flex-start;gap:14px;' }, [
+        block,
+        UI.el('button', { class: 'btn btn-sm', style: 'flex:none;', onclick: () => setGoal() }, '修改')
       ]);
     })() : UI.el('div', { style: 'display:flex;align-items:center;gap:14px;' }, [
-      UI.el('div', { class: 'muted', style: 'flex:1;' }, '还没有设置目标体重，设一个激励自己吧～'),
-      UI.el('button', { class: 'btn btn-sm btn-primary', onclick: () => setTargetWeight() }, '设置目标')
+      UI.el('div', { class: 'muted', style: 'flex:1;' }, '还没有设置减肥计划，设一个激励自己吧～'),
+      UI.el('button', { class: 'btn btn-sm btn-primary', onclick: () => setGoal() }, '设置计划')
     ])
   ]);
   root.appendChild(targetCard);
@@ -132,20 +162,27 @@ function delWeight(rec) {
   UI.confirm('删除记录', '确定删除这条体重记录吗？').then((ok) => { if (ok) { Store.remove('weight', rec.id); UI.toast('已删除'); window.rerenderCurrent(); } });
 }
 
-function setTargetWeight() {
+function setGoal() {
+  const recs = Store.getArr('weight').slice().sort((a, b) => a.date.localeCompare(b.date));
   const body = UI.el('div', {}, [
-    W_field('目标体重 (kg)', UI.el('input', { type: 'number', id: 't-weight', step: '0.1', min: '20', max: '300', value: Store.data.targetWeight || '', placeholder: '例如 50.0' }))
+    W_field('目标体重 (kg)', UI.el('input', { type: 'number', id: 't-weight', step: '0.1', min: '20', max: '300', value: Store.data.targetWeight || '', placeholder: '例如 50.0' })),
+    W_field('初始体重 (kg)', UI.el('input', { type: 'number', id: 't-initial', step: '0.1', min: '20', max: '300', value: Store.data.initialWeight != null ? Store.data.initialWeight : (recs.length ? recs[0].value : ''), placeholder: '留空则取最早记录' })),
+    W_field('目标日期', UI.el('input', { type: 'date', id: 't-date', value: Store.data.targetDate || '', min: UI.today() }))
   ]);
   UI.openModal({
-    title: '设置目标体重', body,
+    title: '设置减肥计划', body,
     actions: [
       { text: '取消', kind: 'btn-ghost' },
       { text: '保存', kind: 'btn-primary', onClick: (c) => {
         const v = parseFloat(document.getElementById('t-weight').value);
-        if (!v || v <= 0) { UI.toast('请输入有效体重'); return; }
+        if (!v || v <= 0) { UI.toast('请输入有效目标体重'); return; }
         Store.data.targetWeight = v;
+        const ini = document.getElementById('t-initial').value;
+        Store.data.initialWeight = ini ? parseFloat(ini) : null;
+        const dt = document.getElementById('t-date').value;
+        Store.data.targetDate = dt || null;
         Store.save();
-        UI.toast('目标已更新'); c(); window.rerenderCurrent();
+        UI.toast('计划已更新'); c(); window.rerenderCurrent();
       } }
     ]
   });
