@@ -6,15 +6,21 @@ window.BjdView = {
       const wishes = Store.getArr('wishes');
       const wrap = UI.el('div', {});
 
-      // 分类筛选标签（含心愿单）
+      // 分类筛选标签（含心愿单 + 统计）
       const tabs = UI.el('div', { class: 'cat-tabs', style: 'margin-bottom:14px;' });
-      ['全部'].concat(CATS).concat(['心愿单']).forEach((cat) => {
-        const count = cat === '全部' ? all.length : cat === '心愿单' ? wishes.length : all.filter((d) => (d.category || '娃头') === cat).length;
-        const label = (cat === '心愿单')
-          ? [UI.el('span', { html: svg('heart'), style: 'display:inline-flex;vertical-align:-3px;margin-right:3px;' }), '心愿单' + (count ? ' ' + count : '')]
-          : (cat + (count ? ' ' + count : ''));
+      const TABS = ['全部'].concat(CATS).concat(['心愿单', '统计']);
+      TABS.forEach((cat) => {
+        const isStat = cat === '统计';
+        const count = cat === '全部' ? all.length
+          : cat === '心愿单' ? wishes.length
+          : cat === '统计' ? null
+          : all.filter((d) => (d.category || '娃头') === cat).length;
+        let label;
+        if (cat === '心愿单') label = [UI.el('span', { html: svg('heart'), style: 'display:inline-flex;vertical-align:-3px;margin-right:3px;' }), '心愿单' + (count ? ' ' + count : '')];
+        else if (isStat) label = '📊 统计';
+        else label = cat + (count ? ' ' + count : '');
         tabs.appendChild(UI.el('button', {
-          class: 'cat-tab' + (cat === _filter ? ' active' : ''),
+          class: 'cat-tab' + (cat === _filter ? ' active' : '') + (isStat ? ' stat' : ''),
           onclick: () => { _filter = cat; window.rerenderCurrent(); }
         }, label));
       });
@@ -22,13 +28,12 @@ window.BjdView = {
 
       if (_filter === '心愿单') {
         renderWishlist(wrap, wishes);
+      } else if (_filter === '统计') {
+        renderCatStats(wrap, all);
       } else {
         const dolls = all.slice()
           .filter((d) => _filter === '全部' || (d.category || '娃头') === _filter)
           .sort((a, b) => (b.acquired || '').localeCompare(a.acquired || '') || a.name.localeCompare(b.name));
-
-        // 分类统计（按全部分类统计数量与价值）
-        wrap.appendChild(buildCatStats(all));
 
         // 统计（按当前筛选）
         const total = dolls.reduce((s, d) => s + (parseFloat(d.price) || 0), 0);
@@ -55,24 +60,43 @@ window.BjdView = {
   }
 };
 
-/* 分类统计：按娃头/假发/娃体/娃衣/其他 统计数量与总价值（横向条形） */
-function buildCatStats(all) {
-  const card = UI.el('div', { class: 'card', style: 'margin-bottom:14px;' });
-  card.appendChild(UI.el('div', { class: 'card-title' }, ['📊 分类统计']));
+/* 分类统计视图（独立标签）：按娃头/假发/娃体/娃衣/其他 统计数量与总价值，紧凑彩色卡片 */
+function renderCatStats(wrap, all) {
+  const colors = { '娃头': '#FF6B9D', '假发': '#7A4DD6', '娃体': '#3DB2FF', '娃衣': '#FFB14D', '其他': '#6BCB9C' };
   const totals = CATS.map((c) => {
     const items = all.filter((d) => (d.category || '娃头') === c);
     return { cat: c, count: items.length, value: items.reduce((s, d) => s + (parseFloat(d.price) || 0), 0) };
   });
+  const grand = totals.reduce((s, t) => s + t.value, 0);
   const maxVal = Math.max(1, ...totals.map((t) => t.value));
+
+  // 概要
+  wrap.appendChild(UI.el('div', { class: 'stat-row', style: 'margin-bottom:14px;' }, [
+    B_statBox(all.length + ' 件', '收藏总数'),
+    B_statBox('¥' + grand.toLocaleString('zh-CN', { maximumFractionDigits: 0 }), '总身价')
+  ]));
+
+  // 各分类卡片
+  const grid = UI.el('div', { class: 'cat-stats' });
   totals.forEach((t) => {
     const pct = Math.round((t.value / maxVal) * 100);
-    card.appendChild(UI.el('div', { class: 'cat-stat-row' }, [
-      UI.el('div', { class: 'cs-name' }, t.cat + ' ' + t.count),
-      UI.el('div', { class: 'cs-bar-wrap' }, UI.el('div', { class: 'cs-bar', style: 'width:' + pct + '%;' })),
-      UI.el('div', { class: 'cs-val' }, '¥' + t.value.toLocaleString('zh-CN', { maximumFractionDigits: 0 }))
+    const share = grand ? Math.round((t.value / grand) * 100) : 0;
+    grid.appendChild(UI.el('div', { class: 'cs-card' }, [
+      UI.el('div', { class: 'cs-top' }, [
+        UI.el('span', { class: 'cs-dot', style: 'background:' + colors[t.cat] + ';' }),
+        UI.el('span', { class: 'cs-cat' }, t.cat),
+        UI.el('span', { class: 'cs-count' }, t.count + ' 件')
+      ]),
+      UI.el('div', { class: 'cs-value' }, '¥' + t.value.toLocaleString('zh-CN', { maximumFractionDigits: 0 })),
+      UI.el('div', { class: 'cs-bar-wrap' }, UI.el('div', { class: 'cs-bar', style: 'width:' + pct + '%;background:' + colors[t.cat] + ';' })),
+      UI.el('div', { class: 'cs-share' }, '占总额 ' + share + '%')
     ]));
   });
-  return card;
+  wrap.appendChild(grid);
+
+  if (!all.length) {
+    wrap.appendChild(UI.el('div', { class: 'empty', style: 'margin-top:14px;' }, [UI.el('div', { class: 'em-ico', html: svg('bjd') }), UI.el('div', { style: 'margin-top:8px;' }, '还没有收藏，先去添加吧 💕')]));
+  }
 }
 
 /* 心愿单视图 */

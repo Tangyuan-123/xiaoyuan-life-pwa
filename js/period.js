@@ -243,17 +243,28 @@ function tapDay(ds) {
 
 function periodForm(rec, prefillStart, prefillEnd) {
   const isEdit = !!rec;
+  const pLen = Store.data.periodSettings.periodLen || 6;
   const startVal = rec ? rec.start : (prefillStart || UI.today());
-  const endVal = rec && rec.end ? rec.end : (prefillEnd || '');
+  // 默认结束日期：按用户设置的「经期时长」自动计算，并预填可见（只填开始日期时即生效）
+  const defaultEnd = UI.addDays(startVal, pLen - 1);
+  const endVal = rec && rec.end ? rec.end : (prefillEnd || defaultEnd);
   const body = UI.el('div', {}, [
     P_field('开始日期', UI.el('input', { type: 'date', id: 'p-start', value: startVal, max: UI.today() })),
-    P_field('结束日期（可选，不填则按设置中的经期时长自动计算）', UI.el('input', { type: 'date', id: 'p-end', value: endVal, min: startVal })),
+    P_field('结束日期（默认按「经期时长 ' + pLen + ' 天」自动填，可改）', UI.el('input', { type: 'date', id: 'p-end', value: endVal, min: startVal })),
     P_field('备注（可选）', UI.el('input', { type: 'text', id: 'p-note', value: rec && rec.note ? rec.note : '', placeholder: '状态 / 感受' }))
   ]);
-  // 开始日期变化时同步结束日期的最小值
+  // 开始日期变化时同步结束日期的最小值；若用户未手动改过结束日期，则按经期时长自动联动
   const startInput = body.querySelector('#p-start');
   const endInput = body.querySelector('#p-end');
-  startInput.addEventListener('change', () => { endInput.min = startInput.value; });
+  let endTouched = false;
+  endInput.addEventListener('input', () => { endTouched = true; });
+  startInput.addEventListener('change', () => {
+    endInput.min = startInput.value;
+    if (!endTouched) {
+      const nd = UI.addDays(startInput.value, pLen - 1);
+      if (nd >= startInput.value) endInput.value = nd;
+    }
+  });
   UI.openModal({
     title: isEdit ? '编辑经期' : '记录经期', body,
     actions: [

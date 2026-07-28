@@ -279,10 +279,12 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .bjd-card .acts .btn { flex: 1; }
 
 /* 分类筛选标签 */
-.cat-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
-.cat-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.cat-tabs { display: flex; gap: 8px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 3px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.cat-tabs::-webkit-scrollbar { display: none; }
+.cat-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; white-space: nowrap; flex: none; }
 .cat-tab:hover { border-color: var(--primary); color: var(--primary); }
 .cat-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.cat-tab.stat { box-shadow: inset 0 0 0 1.5px var(--primary-soft); }
 
 /* 分类徽标 */
 .badge.cat { margin-left: 8px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #EDE4FF; color: #7A4DD6; font-weight: 700; }
@@ -335,12 +337,17 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .tiny { font-size: 12px; }
 hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
-/* ---------- 分类统计（BJD） ---------- */
-.cat-stat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-.cat-stat-row .cs-name { width: 70px; flex: none; font-size: 13px; font-weight: 600; }
-.cat-stat-row .cs-bar-wrap { flex: 1; height: 10px; background: var(--primary-soft); border-radius: 999px; overflow: hidden; }
-.cat-stat-row .cs-bar { height: 100%; background: linear-gradient(90deg, #C9A7FF, #9B6DFF); border-radius: 999px; transition: width .35s ease; }
-.cat-stat-row .cs-val { width: 80px; flex: none; text-align: right; font-size: 13px; font-weight: 700; color: var(--primary-deep); }
+/* ---------- 分类统计（BJD，独立标签） ---------- */
+.cat-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.cs-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; box-shadow: var(--shadow-sm); }
+.cs-top { display: flex; align-items: center; gap: 6px; }
+.cs-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.cs-cat { font-weight: 700; font-size: 14px; }
+.cs-count { margin-left: auto; font-size: 12px; color: var(--text-soft); }
+.cs-value { font-size: 20px; font-weight: 800; color: var(--primary-deep); margin: 8px 0 6px; }
+.cs-bar-wrap { height: 8px; background: var(--primary-soft); border-radius: 999px; overflow: hidden; }
+.cs-bar { height: 100%; border-radius: 999px; transition: width .35s ease; }
+.cs-share { font-size: 12px; color: var(--text-soft); margin-top: 6px; }
 
 /* ---------- 响应式：移动端侧边栏抽屉 ---------- */
 @media (max-width: 860px) {
