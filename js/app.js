@@ -40,19 +40,20 @@
       const h = UI.el('h3', { html: title }); box.appendChild(h);
       if (body) box.appendChild(typeof body === 'string' ? UI.el('div', { html: body }) : body);
       const close = () => mask.classList.remove('show');
+      const off = openOverlay(close); // 登记浮层，并（移动端）压入历史状态以拦截返回手势
       if (actions.length) {
         const act = UI.el('div', { class: 'modal-actions' });
         actions.forEach((a) => {
-          const b = UI.el('button', { class: 'btn ' + (a.kind || ''), onclick: () => (a.onClick ? a.onClick(close) : close()) }, a.text);
+          const b = UI.el('button', { class: 'btn ' + (a.kind || ''), onclick: () => (a.onClick ? a.onClick(off) : off()) }, a.text);
           act.appendChild(b);
         });
         box.appendChild(act);
       }
       // 点击遮罩关闭（点击遮罩空白处，而非弹窗内容）
-      mask.onclick = (e) => { if (e.target === mask && closeOnMask) close(); };
+      mask.onclick = (e) => { if (e.target === mask && closeOnMask) off(); };
       mask.classList.add('show');
-      if (onMount) onMount(box, close);
-      return { close };
+      if (onMount) onMount(box, off);
+      return { close: off };
     },
     confirm(title, msg) {
       return new Promise((res) => {
@@ -84,12 +85,15 @@
       const prevBtn = UI.el('button', { class: 'pv-nav pv-prev', html: svg('back') });
       const nextBtn = UI.el('button', { class: 'pv-nav pv-next', html: svg('chevron') });
       const closeBtn = UI.el('button', { class: 'pv-close', html: svg('close') });
+      const doClose = () => { cleanup(); mask.remove(); };
       prevBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + photoIds.length) % photoIds.length; show(); });
       nextBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % photoIds.length; show(); });
-      closeBtn.addEventListener('click', () => { cleanup(); mask.remove(); });
-      mask.addEventListener('click', (e) => { if (e.target === mask) { cleanup(); mask.remove(); } });
+      closeBtn.addEventListener('click', () => off());
+      mask.addEventListener('click', (e) => { if (e.target === mask) off(); });
       mask.appendChild(closeBtn); mask.appendChild(prevBtn); mask.appendChild(imgWrap); mask.appendChild(nextBtn); mask.appendChild(counter);
       document.body.appendChild(mask);
+      // 登记浮层：手机返回键/侧滑优先关闭灯箱
+      const off = openOverlay(doClose);
     }
   };
   window.UI = UI;
@@ -133,6 +137,21 @@
   // 供各模块在数据变更后做局部重渲染（替代整页 reload）
   window.rerenderCurrent = function () { renderRoute(); };
 
+  // ---------- 弹窗/浮层返回手势 ----------
+  // 打开弹窗、灯箱等浮层时压入一个历史状态；手机系统返回手势（侧滑/返回键）优先关闭浮层，而非退回上一级页面
+  let _overlayStack = [];
+  function openOverlay(closeUI, isModal) {
+    const entry = { closeUI, isModal: !!isModal };
+    _overlayStack.push(entry);
+    if (UI.isMobile()) history.pushState({ overlay: true }, '');
+    return function close() {
+      const i = _overlayStack.indexOf(entry);
+      if (i >= 0) _overlayStack.splice(i, 1);
+      closeUI();
+      if (UI.isMobile()) history.back(); // 手动关闭时移除压入的历史状态
+    };
+  }
+
   // ---------- 侧边栏 + 移动端返回手势 ----------
   let sidebarOpen = false;
   const sb = document.getElementById('sidebar');
@@ -151,8 +170,14 @@
     scrim.classList.remove('show');
     if (pop && UI.isMobile() && history.state && history.state.sb) history.back();
   }
-  // 系统返回手势 / 浏览器后退 -> 关闭抽屉
+  // 系统返回手势 / 浏览器后退 -> 优先关闭浮层，其次关闭抽屉，最后才退回上一级页面
   window.addEventListener('popstate', (e) => {
+    // 浮层优先：有未关闭的浮层时，用系统返回手势关闭它
+    if (_overlayStack.length) {
+      const entry = _overlayStack.pop();
+      entry.closeUI();
+      return;
+    }
     if (sidebarOpen) { closeSidebar(false); return; }
     // 导航后可能残留抽屉历史条目，静默跳过避免卡在同一页
     if (e.state && e.state.sb) history.back();
