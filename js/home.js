@@ -4,15 +4,28 @@ window.HomeView = {
     registerView('home', (root) => {
       const wrap = UI.el('div', {});
 
+      const now = new Date();
       const greeting = (() => {
-        const h = new Date().getHours();
+        const h = now.getHours();
         const t = h < 6 ? '夜深了' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
         return t + '，小圆';
       })();
-      wrap.appendChild(UI.el('div', { class: 'card' }, [
-        UI.el('div', { style: 'font-size:20px;font-weight:800;display:flex;align-items:center;gap:6px;' }, [greeting, UI.el('span', { html: svg('flower'), style: 'color:#FF6B9D;display:inline-flex;' })]),
-        UI.el('div', { class: 'muted', style: 'margin-top:4px;' }, '今天也要好好照顾自己呀～')
-      ]));
+      // 日期 + 农历
+      const md = (now.getMonth() + 1) + '月' + now.getDate() + '日';
+      const lunar = (window.Weather && window.Weather.toLunar) ? window.Weather.toLunar(now) : null;
+      const lunarStr = lunar ? ('农历' + lunar.text) : '';
+      const subLine = UI.el('div', { class: 'muted', style: 'margin-top:4px;' }, '今天 ' + md + (lunarStr ? ' · ' + lunarStr : '') + ' · 天气加载中…');
+      const greetLine = UI.el('div', { style: 'font-size:20px;font-weight:800;display:flex;align-items:center;gap:6px;' }, [greeting, UI.el('span', { html: svg('flower'), style: 'color:#FF6B9D;display:inline-flex;' })]);
+      wrap.appendChild(UI.el('div', { class: 'card' }, [greetLine, subLine]));
+
+      // 异步拉天气，回来后更新副标题（带缓存/降级，失败不影响首页）
+      if (window.Weather && window.Weather.getWeather) {
+        window.Weather.getWeather().then((w) => {
+          if (!w) { subLine.textContent = '今天 ' + md + (lunarStr ? ' · ' + lunarStr : '') + ' · 天气暂不可用'; return; }
+          const cityPart = w.city ? (w.city + ' ') : '';
+          subLine.textContent = '今天 ' + md + (lunarStr ? ' · ' + lunarStr : '') + ' · ' + cityPart + w.text + ' ' + w.temp + '°C' + (w.fromCache ? '（缓存）' : '');
+        }).catch(() => {});
+      }
 
       // 快捷概览
       const w = Store.getArr('weight');
