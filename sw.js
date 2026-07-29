@@ -1,5 +1,9 @@
-/* 小圆助手 Service Worker —— 离线缓存 + 可安装到主屏 */
-const CACHE = 'xiaoyuan-v1';
+/* 小圆助手 Service Worker —— 离线缓存 + 可安装到主屏
+ * 策略：导航与静态资源均「网络优先、离线回退缓存」，
+ * 这样每次刷新都能拿到 GitHub 上的最新代码，断网时仍可打开。
+ * 每次发布新版请递增 CACHE 版本号，旧缓存会在 activate 时清空。
+ */
+const CACHE = 'xiaoyuan-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +17,9 @@ const ASSETS = [
   './js/weight.js',
   './js/period.js',
   './js/bjd.js',
+  './js/acg.js',
+  './js/guzi.js',
+  './js/assistant.js',
   './js/app.js',
   './assets/favicon-64.png',
   './assets/icon-192.png',
@@ -45,14 +52,12 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(req).catch(() => caches.match('./index.html')));
     return;
   }
-  // 静态资源：缓存优先，缺失则网络拉取并写入缓存
+  // 静态资源：网络优先，离线或失败时回退到缓存（保证每次都拿到最新代码）
   e.respondWith(
-    caches.match(req).then((hit) =>
-      hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
-        return res;
-      }).catch(() => hit)
-    )
+    fetch(req).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy));
+      return res;
+    }).catch(() => caches.match(req))
   );
 });
