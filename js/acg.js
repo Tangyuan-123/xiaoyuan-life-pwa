@@ -28,7 +28,18 @@ window.AcgView = {
         acgRenderWishlist(wrap, wishes);
       } else {
         const items = all.slice()
-          .filter((d) => _acgFilter === '全部' || (d.category || '娃脸壳') === _acgFilter);
+          .filter((d) => _acgFilter === '全部' || (d.category || '娃脸壳') === _acgFilter)
+          .filter((d) => _acgStatusFilter === '全部' || (d.received || '未收到') === _acgStatusFilter);
+
+        // 状态筛选（小按钮）
+        const statusTabs = UI.el('div', { class: 'status-tabs', style: 'margin-bottom:14px;' });
+        ['全部', '已收到', '未收到', '定金中'].forEach((st) => {
+          statusTabs.appendChild(UI.el('button', {
+            class: 'status-tab' + (_acgStatusFilter === st ? ' active' : ''),
+            onclick: () => { _acgStatusFilter = st; window.rerenderCurrent(); }
+          }, st));
+        });
+        wrap.appendChild(statusTabs);
 
         // 统计（按当前筛选）
         const total = items.reduce((s, d) => s + (parseFloat(d.price) || 0), 0);
@@ -53,8 +64,9 @@ window.AcgView = {
   }
 };
 
-const ACG_CATS = ['娃脸壳', '娃体', '头壳'];
+const ACG_CATS = ['娃脸壳', '娃体', '头壳', '整体', '娃衣'];
 let _acgFilter = '全部';
+let _acgStatusFilter = '全部';
 let _acgWishToRemoveOnSave = null;
 
 let _acgUrls = [];
@@ -66,7 +78,7 @@ function acgItemCard(d) {
   const thumb = UI.el('div', { class: 'thumb', html: svg('acg') });
   if (d.photos && d.photos.length) acgThumbURL(d.photos[0], (u) => { thumb.innerHTML = ''; const img = UI.el('img', { src: u, alt: d.name }); thumb.appendChild(img); });
   card.appendChild(thumb);
-  const recvColor = (d.received === '已收到') ? '#6BCB9C' : '#B0B7C3';
+  const recvColor = { '已收到': '#6BCB9C', '定金中': '#FFC46B', '未收到': '#B0B7C3' }[d.received || '未收到'];
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [
       d.name || '未命名',
@@ -174,6 +186,7 @@ function acgItemForm(existing, defaultCat, prefill) {
     UI.el('div', { class: 'row' }, [
       acgField('是否已收到', UI.el('select', { id: 'a-received' }, [
         UI.el('option', { value: '未收到', selected: (init.received || '未收到') === '未收到' ? '' : null }, '未收到'),
+        UI.el('option', { value: '定金中', selected: (init.received || '未收到') === '定金中' ? '' : null }, '定金中'),
         UI.el('option', { value: '已收到', selected: (init.received || '未收到') === '已收到' ? '' : null }, '已收到')
       ])),
       acgField('入手日期', UI.el('input', { type: 'date', id: 'a-date', value: init.date || '' }))
