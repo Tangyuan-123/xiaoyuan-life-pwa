@@ -17,7 +17,10 @@ const Store = (function () {
     period: [],            // [{id, start, end}]  start/end: YYYY-MM-DD
     periodSettings: { cycle: 28, luteal: 14, periodLen: 6 }, // 周期长度、黄体期长度、经期时长(天)
     dolls: [],             // [{id, name, company, size, skin, headCirc, neckCirc, price, gender, acquired, note, photos:[imgId]}]
-    wishes: []             // 心愿单：想要但未拥有的娃 [{id, name, category, company, size, price, note}]
+    wishes: [],            // 心愿单：想要但未拥有的娃 [{id, name, category, company, size, price, note}]
+    acg: [],               // 二次元娃：[{id, name, category(娃脸壳/娃体/头壳), company, size, price, received, photos:[imgId], note, date}]
+    acgWishes: [],         // 二次元娃心愿单：[{id, name, category, company, size, price, note}]
+    guzi: []               // 谷子助手：[{id, name, character, type, price, received, photos:[imgId], note}]
   };
 
   let data = load();

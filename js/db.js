@@ -60,25 +60,24 @@ const DB = (function () {
     }));
   }
 
-  // 将图片文件压缩并生成 Blob（统一 JPEG，最长边 maxSize，并居中裁切为正方形）
-  function fileToBlob(file, maxSize = 1000, quality = 0.82) {
+  // 将图片文件压缩并生成 Blob（统一 JPEG，仅按最长边等比缩放，保留原始比例、不裁切）
+  // 注意：缩略图/网格的“正方形裁剪”是在显示层用 CSS object-fit:cover 完成的，
+  // 这里存储的是完整原始画面，点开大图（object-fit:contain）即可看到未被裁掉信息的原图。
+  function fileToBlob(file, maxSize = 1600, quality = 0.85) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
           const iw = img.naturalWidth, ih = img.naturalHeight;
-          // 源图居中正方形裁剪区域
-          const srcSide = Math.min(iw, ih);
-          const sx = Math.round((iw - srcSide) / 2);
-          const sy = Math.round((ih - srcSide) / 2);
-          // 缩放到最长边不超过 maxSize
-          const scale = Math.min(1, maxSize / srcSide);
-          const destSide = Math.max(1, Math.round(srcSide * scale));
+          // 仅等比缩放：最长边不超过 maxSize，保持原始宽高比（不裁剪、不丢失画面信息）
+          const scale = Math.min(1, maxSize / Math.max(iw, ih));
+          const dw = Math.max(1, Math.round(iw * scale));
+          const dh = Math.max(1, Math.round(ih * scale));
           const canvas = document.createElement('canvas');
-          canvas.width = destSide; canvas.height = destSide;
+          canvas.width = dw; canvas.height = dh;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, sx, sy, srcSide, srcSide, 0, 0, destSide, destSide);
+          ctx.drawImage(img, 0, 0, dw, dh);
           canvas.toBlob((b) => resolve(b), 'image/jpeg', quality);
         };
         img.onerror = reject;

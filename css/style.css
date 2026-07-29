@@ -289,6 +289,12 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 /* 分类徽标 */
 .badge.cat { margin-left: 8px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #EDE4FF; color: #7A4DD6; font-weight: 700; }
 
+/* 角色快速选择 chips（谷子助手表单） */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.chip:hover { border-color: var(--primary); color: var(--primary); }
+.chip:active { background: var(--primary-soft); }
+
 .photo-strip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; }
 .photo-strip .ph { flex: 0 0 72px; width: 72px; height: 72px; border-radius: 14px; overflow: hidden; position: relative; background: var(--primary-soft); }
 .photo-strip .ph img { width: 100%; height: 100%; object-fit: cover; }

@@ -102,7 +102,9 @@
     { key: 'home', label: '首页', icon: 'home' },
     { key: 'weight', label: '减肥助手', icon: 'weight' },
     { key: 'period', label: '经期助手', icon: 'period' },
-    { key: 'bjd', label: 'BJD 娃娃', icon: 'bjd' }
+    { key: 'bjd', label: 'BJD 娃娃', icon: 'bjd' },
+    { key: 'acg', label: '二次元娃', icon: 'acg' },
+    { key: 'guzi', label: '谷子助手', icon: 'guzi' }
   ];
 
   function setRoute(name) {
@@ -167,7 +169,10 @@
   document.addEventListener('touchend', () => { touchStartX = null; });
 
   // ---------- 初始化 ----------
+  let _inited = false;
   function init() {
+    if (_inited) return;
+    _inited = true;
     // 侧边栏导航项
     const nav = document.getElementById('nav');
     NAV.forEach((n) => {
@@ -196,6 +201,8 @@
       if (window.PeriodView) PeriodView.register();
       if (window.WeightView) WeightView.register();
       if (window.BjdView) BjdView.register();
+      if (window.AcgView) AcgView.register();
+      if (window.GuziView) GuziView.register();
       if (window.HomeView) HomeView.register();
 
     window.addEventListener('hashchange', renderRoute);
