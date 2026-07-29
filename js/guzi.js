@@ -70,6 +70,10 @@ function guziCard(g) {
     ])
   ]));
   card.addEventListener('click', () => guziDetail(g));
+  card.appendChild(UI.el('div', { class: 'acts' }, [
+    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); guziForm(g); } }, '编辑'),
+    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); guziDelGuzi(g); } })
+  ]));
   return card;
 }
 

@@ -226,6 +226,10 @@ function dollCard(d) {
     ])
   ]));
   card.addEventListener('click', () => dollDetail(d));
+  card.appendChild(UI.el('div', { class: 'acts' }, [
+    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); dollForm(d); } }, '编辑'),
+    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delDoll(d); } })
+  ]));
   return card;
 }
 

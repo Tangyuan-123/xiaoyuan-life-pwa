@@ -92,6 +92,10 @@ function acgItemCard(d) {
     ])
   ]));
   card.addEventListener('click', () => acgItemDetail(d));
+  card.appendChild(UI.el('div', { class: 'acts' }, [
+    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); acgItemForm(d); } }, '编辑'),
+    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); acgDelItem(d); } })
+  ]));
   return card;
 }
 
@@ -187,7 +191,6 @@ function acgItemForm(existing, defaultCat, prefill) {
       acgField('肤色', UI.el('select', { id: 'a-skin' }, ACG_SKINS.map((s) => UI.el('option', { value: s, selected: (init.skin || '白皙') === s ? '' : null }, s)))),
       acgField('价格 (¥)', UI.el('input', { type: 'number', id: 'a-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' }))
     ]),
-    acgField('价格 (¥)', UI.el('input', { type: 'number', id: 'a-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' })),
     UI.el('div', { class: 'row' }, [
       acgField('是否已收到', UI.el('select', { id: 'a-received' }, [
         UI.el('option', { value: '未收到', selected: (init.received || '未收到') === '未收到' ? '' : null }, '未收到'),

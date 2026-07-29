@@ -149,7 +149,12 @@
       const i = _overlayStack.indexOf(entry);
       if (i >= 0) _overlayStack.splice(i, 1);
       closeUI();
-      if (UI.isMobile()) history.back(); // 手动关闭时移除压入的历史状态
+      if (UI.isMobile()) {
+        // 手动关闭浮层时，用 replaceState 消费掉其对应的历史状态，
+        // 既不触发 popstate，也不让浏览器后退栈残留多余条目。
+        // 这样「详情弹窗→点编辑→紧跟着打开编辑弹窗」时不会被异步 popstate 误关。
+        try { history.replaceState({}, ''); } catch (e) {}
+      }
     };
   }
 
@@ -231,31 +236,52 @@
       UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:14px;' }, '选择喜欢的马卡龙配色，或开启深夜模式。设置会自动保存。'),
       grid,
       UI.el('hr', { class: 'sep' }),
-      UI.el('div', { class: 'card-title', style: 'margin:0 0 12px;' }, [svg('guzi'), '天气城市']),
-      UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:10px;' }, '定位失败时会显示该城市的天气；也可开启定位自动获取当前位置。'),
+      UI.el('div', { class: 'card-title', style: 'margin:0 0 12px;' }, [svg('guzi'), '天气设置']),
       (function () {
-        const curCity = window.Weather ? window.Weather.getCity() : '北京';
-        const sel = UI.el('select', { id: 'set-city' }, Object.keys(window.Weather ? window.Weather.CITY_COORDS : {}).map((c) =>
-          UI.el('option', { value: c, selected: c === curCity ? '' : null }, c)));
-        const wrap = UI.el('div', { class: 'field' }, [UI.el('label', {}, '默认城市'), sel]);
-        wrap._apply = () => { if (window.Weather) window.Weather.setCity(sel.value); };
+        const W = window.Weather;
+        const cur = W ? W.getCity() : '河南,平顶山';
+        const ci = cur.indexOf(',');
+        const curProv = ci >= 0 ? cur.slice(0, ci) : '河南';
+        const curCity = ci >= 0 ? cur.slice(ci + 1) : '平顶山';
+        const provSel = UI.el('select', { id: 'set-prov', class: 'row' },
+          Object.keys(W ? W.PROVINCE_CITY : {}).map((p) => UI.el('option', { value: p, selected: p === curProv ? '' : null }, p)));
+        const citySel = UI.el('select', { id: 'set-city' });
+        function fillCities(prov) {
+          citySel.innerHTML = '';
+          (W && W.PROVINCE_CITY[prov] || []).forEach(([c]) => {
+            citySel.appendChild(UI.el('option', { value: c, selected: c === curCity ? '' : null }, c));
+          });
+        }
+        fillCities(curProv);
+        provSel.addEventListener('change', () => fillCities(provSel.value));
+        const wrap = UI.el('div', { class: 'field' }, [
+          UI.el('label', {}, '默认城市（省 - 市）'),
+          UI.el('div', { class: 'row' }, [provSel, citySel])
+        ]);
+        wrap._apply = () => { if (W) W.setCity(provSel.value + ',' + citySel.value); };
+        // 定位开关
+        const locOn = W ? W.getLocate() : false;
+        const locBtn = UI.el('button', { class: 'btn btn-sm' + (locOn ? ' btn-primary' : ''), style: 'margin-top:8px;' }, locOn ? '📍 定位已开启' : '📍 使用定位获取当前位置');
+        locBtn.addEventListener('click', () => {
+          if (!('geolocation' in navigator)) { UI.toast('当前环境不支持定位'); return; }
+          const turnOn = !(W && W.getLocate());
+          if (turnOn) {
+            UI.toast('正在获取定位…');
+            navigator.geolocation.getCurrentPosition(
+              () => { if (W) W.setLocate(true); locBtn.classList.add('btn-primary'); locBtn.textContent = '📍 定位已开启'; UI.toast('定位成功，将自动显示当前位置天气 💕'); },
+              () => { if (W) W.setLocate(false); locBtn.classList.remove('btn-primary'); locBtn.textContent = '📍 使用定位获取当前位置'; UI.toast('定位失败，已使用默认城市'); }
+            );
+          } else {
+            if (W) W.setLocate(false); locBtn.classList.remove('btn-primary'); locBtn.textContent = '📍 使用定位获取当前位置'; UI.toast('已关闭定位');
+          }
+        });
         // 在「完成」按钮里统一保存城市
         setTimeout(() => {
           const done = document.querySelector('.modal-actions .btn-primary');
           if (done) done.addEventListener('click', () => { wrap._apply(); });
         }, 0);
-        return wrap;
-      })(),
-      UI.el('div', { style: 'margin-top:8px;' }, [
-        UI.el('button', { class: 'btn btn-sm', onclick: () => {
-          if (!('geolocation' in navigator)) { UI.toast('当前环境不支持定位'); return; }
-          UI.toast('正在获取定位…');
-          navigator.geolocation.getCurrentPosition(
-            () => { UI.toast('定位成功，下次刷新将显示当前位置天气 💕'); },
-            () => { UI.toast('定位失败，已使用默认城市'); }
-          );
-        } }, [svg('home'), '用定位获取当前位置天气'])
-      ])
+        return UI.el('div', {}, [wrap, locBtn]);
+      })()
     ]);
     UI.openModal({ title: '外观设置', body, actions: [{ text: '完成', kind: 'btn-primary' }] });
   };
