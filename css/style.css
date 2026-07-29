@@ -378,3 +378,78 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
   #sidebar.collapsed { transform: translateX(-100%); margin-left: calc(var(--sidebar-w) * -1); }
   .menu-toggle-desktop { display: grid; }
 }
+
+/* ========== 主题切换（马卡龙色系 + 深夜模式） ========== */
+/* 通过 data-theme 覆盖 :root 变量，全站配色随主题变化。默认（无属性）= 粉色。 */
+
+/* 紫色马卡龙 */
+[data-theme="purple"] {
+  --bg: #F6F1FB; --bg-grad-1: #F3EBFB; --bg-grad-2: #EFE6FA;
+  --surface: #FFFFFF; --surface-2: #FAF6FE;
+  --primary: #9B6DFF; --primary-soft: #ECE3FF; --primary-deep: #7A4DD6;
+  --accent: #C9A7FF; --text: #443A52; --text-soft: #948AA6; --text-faint: #C9BEDE;
+  --border: #ECE3F7; --danger: #FF7A9A; --ok: #6BCB9C;
+  --shadow: 0 8px 24px rgba(155,109,255,0.12); --shadow-sm: 0 4px 12px rgba(155,109,255,0.10);
+}
+/* 蓝色马卡龙 */
+[data-theme="blue"] {
+  --bg: #F0F6FD; --bg-grad-1: #EBF3FC; --bg-grad-2: #E6F0FB;
+  --surface: #FFFFFF; --surface-2: #F7FAFE;
+  --primary: #3DA5FF; --primary-soft: #DCEEFF; --primary-deep: #2B83D9;
+  --accent: #8FC8FF; --text: #36465A; --text-soft: #7E8CA2; --text-faint: #BFCFE3;
+  --border: #E2EEFB; --danger: #FF7A8A; --ok: #6BCB9C;
+  --shadow: 0 8px 24px rgba(61,165,255,0.12); --shadow-sm: 0 4px 12px rgba(61,165,255,0.10);
+}
+/* 绿色马卡龙 */
+[data-theme="green"] {
+  --bg: #EEFAF3; --bg-grad-1: #E9F7EF; --bg-grad-2: #E4F5EC;
+  --surface: #FFFFFF; --surface-2: #F6FCF8;
+  --primary: #3DB98A; --primary-soft: #DCF4E8; --primary-deep: #2C9A70;
+  --accent: #8FDCC0; --text: #2F4A40; --text-soft: #6E8A7E; --text-faint: #BBDCCB;
+  --border: #E0F1E8; --danger: #FF8A7A; --ok: #3DB98A;
+  --shadow: 0 8px 24px rgba(61,185,138,0.12); --shadow-sm: 0 4px 12px rgba(61,185,138,0.10);
+}
+/* 黄色马卡龙 */
+[data-theme="yellow"] {
+  --bg: #FDF8EC; --bg-grad-1: #FBF3DD; --bg-grad-2: #F9EFD4;
+  --surface: #FFFFFF; --surface-2: #FEFBF2;
+  --primary: #F0B429; --primary-soft: #FCEFC9; --primary-deep: #D99A12;
+  --accent: #F8D479; --text: #4F4628; --text-soft: #9A8E66; --text-faint: #DCCFA8;
+  --border: #F6ECCB; --danger: #FF8A7A; --ok: #5BB98A;
+  --shadow: 0 8px 24px rgba(240,180,41,0.13); --shadow-sm: 0 4px 12px rgba(240,180,41,0.11);
+}
+/* 深夜模式 */
+[data-theme="dark"] {
+  --bg: #15131C; --bg-grad-1: #1A1726; --bg-grad-2: #120F1A;
+  --surface: #211D2E; --surface-2: #272336;
+  --primary: #C18BFF; --primary-soft: #322A47; --primary-deep: #A36BFF;
+  --accent: #6E5A98; --text: #ECE8F5; --text-soft: #A99FBF; --text-faint: #6B627E;
+  --border: #322B45; --danger: #FF7A9A; --ok: #5FD3A0;
+  --shadow: 0 8px 24px rgba(0,0,0,0.45); --shadow-sm: 0 4px 12px rgba(0,0,0,0.40);
+}
+[data-theme="dark"] body { color: var(--text); }
+[data-theme="dark"] #sidebar { background: linear-gradient(180deg, #211D2E, #1A1726); }
+[data-theme="dark"] .brand .logo { background: linear-gradient(135deg, #A36BFF, #8B57E6); }
+[data-theme="dark"] .nav-item:hover { background: #2C2740; color: var(--text); }
+[data-theme="dark"] .nav-item.active { background: linear-gradient(135deg, #A36BFF, #8B57E6); }
+[data-theme="dark"] .topbar { background: rgba(21,19,28,.85); }
+[data-theme="dark"] .home-card .hc-stat { color: var(--primary-deep); }
+[data-theme="dark"] .assistant-messages { background: #1C1927; }
+[data-theme="dark"] .assistant-msg.bot .assistant-bubble { background: #2A2540; color: var(--text); border-color: #322B45; }
+[data-theme="dark"] .modal { background: var(--surface); }
+[data-theme="dark"] #fs-layer { background: #15131C; }
+[data-theme="dark"] .field input, [data-theme="dark"] .field select, [data-theme="dark"] .field textarea { background: var(--surface-2); color: var(--text); }
+
+/* 主题选择色块 */
+.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.theme-swatch {
+  border: 2px solid var(--border); border-radius: 16px; padding: 12px 8px; text-align: center;
+  cursor: pointer; background: var(--surface); transition: border-color .15s, transform .12s;
+}
+.theme-swatch:active { transform: scale(.96); }
+.theme-swatch.active { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.theme-swatch .dot {
+  width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 8px;
+  display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px;
+}
+.theme-swatch .lab { font-size: 12px; font-weight: 700; color: var(--text); }
