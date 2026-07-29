@@ -318,8 +318,8 @@ function dollForm(existing, defaultCat, prefill) {
     UI.el('div', { id: 'd-physical' }, [
       B_field('肤色', UI.el('input', { type: 'text', id: 'd-skin', value: init.skin || '', placeholder: '如 粉白 / 小麦' })),
       UI.el('div', { class: 'row' }, [
-        B_field('头围 (cm)', UI.el('input', { type: 'number', id: 'd-headcirc', step: '0.1', min: '0', value: init.headCirc || '', placeholder: '选填' })),
-        B_field('脖围 (cm)', UI.el('input', { type: 'number', id: 'd-neckcirc', step: '0.1', min: '0', value: init.neckCirc || '', placeholder: '选填' }))
+        B_field('头围 (cm)', UI.el('input', { type: 'text', id: 'd-headcirc', inputmode: 'text', value: init.headCirc || '', placeholder: '如 22-23（弹力发网可填范围）' })),
+        B_field('脖围 (cm)', UI.el('input', { type: 'text', id: 'd-neckcirc', inputmode: 'text', value: init.neckCirc || '', placeholder: '如 12-13' }))
       ]),
       B_field('性别', UI.el('select', { id: 'd-gender' }, [
         UI.el('option', { value: '' }, '不填'),
