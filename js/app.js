@@ -108,7 +108,8 @@
     { key: 'period', label: '经期助手', icon: 'period' },
     { key: 'bjd', label: 'BJD 娃娃', icon: 'bjd' },
     { key: 'acg', label: '二次元娃', icon: 'acg' },
-    { key: 'guzi', label: '谷子助手', icon: 'guzi' }
+    { key: 'guzi', label: '谷子助手', icon: 'guzi' },
+    { key: 'settings', label: '设置', icon: 'settings' }
   ];
 
   function setRoute(name) {
@@ -193,6 +194,72 @@
   }, { passive: true });
   document.addEventListener('touchend', () => { touchStartX = null; });
 
+  // ---------- 主题切换 ----------
+  const THEMES = [
+    { id: 'pink', name: '粉色', color: '#FF6B9D' },
+    { id: 'purple', name: '紫色', color: '#9B6DFF' },
+    { id: 'blue', name: '蓝色', color: '#3DA5FF' },
+    { id: 'green', name: '绿色', color: '#3DB98A' },
+    { id: 'yellow', name: '黄色', color: '#F0B429' },
+    { id: 'dark', name: '深夜', color: '#15131C' }
+  ];
+  const THEME_KEY = 'xiaoyuan-theme';
+  function applyTheme(id) {
+    if (!id || id === 'pink') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', id);
+  }
+  function saveTheme(id) { try { localStorage.setItem(THEME_KEY, id || 'pink'); } catch (e) {} applyTheme(id); }
+
+  window.openSettings = function () {
+    if (UI.isMobile() && sidebarOpen) closeSidebar(false);
+    const cur = (function () { try { return localStorage.getItem(THEME_KEY) || 'pink'; } catch (e) { return 'pink'; } })();
+    const grid = UI.el('div', { class: 'theme-grid' });
+    THEMES.forEach((t) => {
+      const sw = UI.el('div', { class: 'theme-swatch' + (t.id === cur ? ' active' : ''), 'data-id': t.id }, [
+        UI.el('div', { class: 'dot', style: 'background:' + t.color }, t.id === 'dark' ? '' : ''),
+        UI.el('div', { class: 'lab' }, t.name)
+      ]);
+      sw.addEventListener('click', () => {
+        grid.querySelectorAll('.theme-swatch').forEach((x) => x.classList.remove('active'));
+        sw.classList.add('active');
+        saveTheme(t.id);
+        UI.toast('已切换为' + t.name + '主题 💕');
+      });
+      grid.appendChild(sw);
+    });
+    const body = UI.el('div', {}, [
+      UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:14px;' }, '选择喜欢的马卡龙配色，或开启深夜模式。设置会自动保存。'),
+      grid,
+      UI.el('hr', { class: 'sep' }),
+      UI.el('div', { class: 'card-title', style: 'margin:0 0 12px;' }, [svg('guzi'), '天气城市']),
+      UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:10px;' }, '定位失败时会显示该城市的天气；也可开启定位自动获取当前位置。'),
+      (function () {
+        const curCity = window.Weather ? window.Weather.getCity() : '北京';
+        const sel = UI.el('select', { id: 'set-city' }, Object.keys(window.Weather ? window.Weather.CITY_COORDS : {}).map((c) =>
+          UI.el('option', { value: c, selected: c === curCity ? '' : null }, c)));
+        const wrap = UI.el('div', { class: 'field' }, [UI.el('label', {}, '默认城市'), sel]);
+        wrap._apply = () => { if (window.Weather) window.Weather.setCity(sel.value); };
+        // 在「完成」按钮里统一保存城市
+        setTimeout(() => {
+          const done = document.querySelector('.modal-actions .btn-primary');
+          if (done) done.addEventListener('click', () => { wrap._apply(); });
+        }, 0);
+        return wrap;
+      })(),
+      UI.el('div', { style: 'margin-top:8px;' }, [
+        UI.el('button', { class: 'btn btn-sm', onclick: () => {
+          if (!('geolocation' in navigator)) { UI.toast('当前环境不支持定位'); return; }
+          UI.toast('正在获取定位…');
+          navigator.geolocation.getCurrentPosition(
+            () => { UI.toast('定位成功，下次刷新将显示当前位置天气 💕'); },
+            () => { UI.toast('定位失败，已使用默认城市'); }
+          );
+        } }, [svg('home'), '用定位获取当前位置天气'])
+      ])
+    ]);
+    UI.openModal({ title: '外观设置', body, actions: [{ text: '完成', kind: 'btn-primary' }] });
+  };
+
   // ---------- 初始化 ----------
   let _inited = false;
   function init() {
@@ -204,6 +271,7 @@
       const btn = UI.el('button', {
         class: 'nav-item', 'data-route': n.key,
       onclick: () => {
+        if (n.key === 'settings') { if (UI.isMobile()) closeSidebar(false); window.openSettings(); return; }
         // 先设路由再关抽屉，避免 closeSidebar 的 history.back() 与 hash 赋值竞态导致跳转失效
         setRoute(n.key);
         if (UI.isMobile()) closeSidebar(false);
@@ -221,6 +289,9 @@
       else sb.classList.toggle('collapsed');
     });
     scrim.addEventListener('click', () => closeSidebar());
+
+    // 应用已保存的主题
+    (function () { try { applyTheme(localStorage.getItem(THEME_KEY) || 'pink'); } catch (e) {} })();
 
       // 注册视图（Period 需先于 Home，因为首页依赖其预测方法）
       if (window.PeriodView) PeriodView.register();
