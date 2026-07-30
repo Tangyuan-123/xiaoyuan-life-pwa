@@ -40,20 +40,19 @@
       const h = UI.el('h3', { html: title }); box.appendChild(h);
       if (body) box.appendChild(typeof body === 'string' ? UI.el('div', { html: body }) : body);
       const close = () => mask.classList.remove('show');
-      const off = openOverlay(close); // 登记浮层，并（移动端）压入历史状态以拦截返回手势
       if (actions.length) {
         const act = UI.el('div', { class: 'modal-actions' });
         actions.forEach((a) => {
-          const b = UI.el('button', { class: 'btn ' + (a.kind || ''), onclick: () => (a.onClick ? a.onClick(off) : off()) }, a.text);
+          const b = UI.el('button', { class: 'btn ' + (a.kind || ''), onclick: () => (a.onClick ? a.onClick(close) : close()) }, a.text);
           act.appendChild(b);
         });
         box.appendChild(act);
       }
       // 点击遮罩关闭（点击遮罩空白处，而非弹窗内容）
-      mask.onclick = (e) => { if (e.target === mask && closeOnMask) off(); };
+      mask.onclick = (e) => { if (e.target === mask && closeOnMask) close(); };
       mask.classList.add('show');
-      if (onMount) onMount(box, off);
-      return { close: off };
+      if (onMount) onMount(box, close);
+      return { close };
     },
     confirm(title, msg) {
       return new Promise((res) => {
@@ -85,15 +84,12 @@
       const prevBtn = UI.el('button', { class: 'pv-nav pv-prev', html: svg('back') });
       const nextBtn = UI.el('button', { class: 'pv-nav pv-next', html: svg('chevron') });
       const closeBtn = UI.el('button', { class: 'pv-close', html: svg('close') });
-      const doClose = () => { cleanup(); mask.remove(); };
       prevBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx - 1 + photoIds.length) % photoIds.length; show(); });
       nextBtn.addEventListener('click', (e) => { e.stopPropagation(); idx = (idx + 1) % photoIds.length; show(); });
-      closeBtn.addEventListener('click', () => off());
-      mask.addEventListener('click', (e) => { if (e.target === mask) off(); });
+      closeBtn.addEventListener('click', () => { cleanup(); mask.remove(); });
+      mask.addEventListener('click', (e) => { if (e.target === mask) { cleanup(); mask.remove(); } });
       mask.appendChild(closeBtn); mask.appendChild(prevBtn); mask.appendChild(imgWrap); mask.appendChild(nextBtn); mask.appendChild(counter);
       document.body.appendChild(mask);
-      // 登记浮层：手机返回键/侧滑优先关闭灯箱
-      const off = openOverlay(doClose);
     }
   };
   window.UI = UI;
@@ -108,8 +104,7 @@
     { key: 'period', label: '经期助手', icon: 'period' },
     { key: 'bjd', label: 'BJD 娃娃', icon: 'bjd' },
     { key: 'acg', label: '二次元娃', icon: 'acg' },
-    { key: 'guzi', label: '谷子助手', icon: 'guzi' },
-    { key: 'settings', label: '设置', icon: 'settings' }
+    { key: 'guzi', label: '谷子助手', icon: 'guzi' }
   ];
 
   function setRoute(name) {
@@ -138,26 +133,6 @@
   // 供各模块在数据变更后做局部重渲染（替代整页 reload）
   window.rerenderCurrent = function () { renderRoute(); };
 
-  // ---------- 弹窗/浮层返回手势 ----------
-  // 打开弹窗、灯箱等浮层时压入一个历史状态；手机系统返回手势（侧滑/返回键）优先关闭浮层，而非退回上一级页面
-  let _overlayStack = [];
-  function openOverlay(closeUI, isModal) {
-    const entry = { closeUI, isModal: !!isModal };
-    _overlayStack.push(entry);
-    if (UI.isMobile()) history.pushState({ overlay: true }, '');
-    return function close() {
-      const i = _overlayStack.indexOf(entry);
-      if (i >= 0) _overlayStack.splice(i, 1);
-      closeUI();
-      if (UI.isMobile()) {
-        // 手动关闭浮层时，用 replaceState 消费掉其对应的历史状态，
-        // 既不触发 popstate，也不让浏览器后退栈残留多余条目。
-        // 这样「详情弹窗→点编辑→紧跟着打开编辑弹窗」时不会被异步 popstate 误关。
-        try { history.replaceState({}, ''); } catch (e) {}
-      }
-    };
-  }
-
   // ---------- 侧边栏 + 移动端返回手势 ----------
   let sidebarOpen = false;
   const sb = document.getElementById('sidebar');
@@ -176,14 +151,8 @@
     scrim.classList.remove('show');
     if (pop && UI.isMobile() && history.state && history.state.sb) history.back();
   }
-  // 系统返回手势 / 浏览器后退 -> 优先关闭浮层，其次关闭抽屉，最后才退回上一级页面
+  // 系统返回手势 / 浏览器后退 -> 关闭抽屉
   window.addEventListener('popstate', (e) => {
-    // 浮层优先：有未关闭的浮层时，用系统返回手势关闭它
-    if (_overlayStack.length) {
-      const entry = _overlayStack.pop();
-      entry.closeUI();
-      return;
-    }
     if (sidebarOpen) { closeSidebar(false); return; }
     // 导航后可能残留抽屉历史条目，静默跳过避免卡在同一页
     if (e.state && e.state.sb) history.back();
@@ -199,93 +168,6 @@
   }, { passive: true });
   document.addEventListener('touchend', () => { touchStartX = null; });
 
-  // ---------- 主题切换 ----------
-  const THEMES = [
-    { id: 'pink', name: '粉色', color: '#FF6B9D' },
-    { id: 'purple', name: '紫色', color: '#9B6DFF' },
-    { id: 'blue', name: '蓝色', color: '#3DA5FF' },
-    { id: 'green', name: '绿色', color: '#3DB98A' },
-    { id: 'yellow', name: '黄色', color: '#F0B429' },
-    { id: 'dark', name: '深夜', color: '#15131C' }
-  ];
-  const THEME_KEY = 'xiaoyuan-theme';
-  function applyTheme(id) {
-    if (!id || id === 'pink') document.documentElement.removeAttribute('data-theme');
-    else document.documentElement.setAttribute('data-theme', id);
-  }
-  function saveTheme(id) { try { localStorage.setItem(THEME_KEY, id || 'pink'); } catch (e) {} applyTheme(id); }
-
-  window.openSettings = function () {
-    if (UI.isMobile() && sidebarOpen) closeSidebar(false);
-    const cur = (function () { try { return localStorage.getItem(THEME_KEY) || 'pink'; } catch (e) { return 'pink'; } })();
-    const grid = UI.el('div', { class: 'theme-grid' });
-    THEMES.forEach((t) => {
-      const sw = UI.el('div', { class: 'theme-swatch' + (t.id === cur ? ' active' : ''), 'data-id': t.id }, [
-        UI.el('div', { class: 'dot', style: 'background:' + t.color }, t.id === 'dark' ? '' : ''),
-        UI.el('div', { class: 'lab' }, t.name)
-      ]);
-      sw.addEventListener('click', () => {
-        grid.querySelectorAll('.theme-swatch').forEach((x) => x.classList.remove('active'));
-        sw.classList.add('active');
-        saveTheme(t.id);
-        UI.toast('已切换为' + t.name + '主题 💕');
-      });
-      grid.appendChild(sw);
-    });
-    const body = UI.el('div', {}, [
-      UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:14px;' }, '选择喜欢的马卡龙配色，或开启深夜模式。设置会自动保存。'),
-      grid,
-      UI.el('hr', { class: 'sep' }),
-      UI.el('div', { class: 'card-title', style: 'margin:0 0 12px;' }, [svg('guzi'), '天气设置']),
-      (function () {
-        const W = window.Weather;
-        const cur = W ? W.getCity() : '河南,平顶山';
-        const ci = cur.indexOf(',');
-        const curProv = ci >= 0 ? cur.slice(0, ci) : '河南';
-        const curCity = ci >= 0 ? cur.slice(ci + 1) : '平顶山';
-        const provSel = UI.el('select', { id: 'set-prov', class: 'row' },
-          Object.keys(W ? W.PROVINCE_CITY : {}).map((p) => UI.el('option', { value: p, selected: p === curProv ? '' : null }, p)));
-        const citySel = UI.el('select', { id: 'set-city' });
-        function fillCities(prov) {
-          citySel.innerHTML = '';
-          (W && W.PROVINCE_CITY[prov] || []).forEach(([c]) => {
-            citySel.appendChild(UI.el('option', { value: c, selected: c === curCity ? '' : null }, c));
-          });
-        }
-        fillCities(curProv);
-        provSel.addEventListener('change', () => fillCities(provSel.value));
-        const wrap = UI.el('div', { class: 'field' }, [
-          UI.el('label', {}, '默认城市（省 - 市）'),
-          UI.el('div', { class: 'row' }, [provSel, citySel])
-        ]);
-        wrap._apply = () => { if (W) W.setCity(provSel.value + ',' + citySel.value); };
-        // 定位开关
-        const locOn = W ? W.getLocate() : false;
-        const locBtn = UI.el('button', { class: 'btn btn-sm' + (locOn ? ' btn-primary' : ''), style: 'margin-top:8px;' }, locOn ? '📍 定位已开启' : '📍 使用定位获取当前位置');
-        locBtn.addEventListener('click', () => {
-          if (!('geolocation' in navigator)) { UI.toast('当前环境不支持定位'); return; }
-          const turnOn = !(W && W.getLocate());
-          if (turnOn) {
-            UI.toast('正在获取定位…');
-            navigator.geolocation.getCurrentPosition(
-              () => { if (W) W.setLocate(true); locBtn.classList.add('btn-primary'); locBtn.textContent = '📍 定位已开启'; UI.toast('定位成功，将自动显示当前位置天气 💕'); },
-              () => { if (W) W.setLocate(false); locBtn.classList.remove('btn-primary'); locBtn.textContent = '📍 使用定位获取当前位置'; UI.toast('定位失败，已使用默认城市'); }
-            );
-          } else {
-            if (W) W.setLocate(false); locBtn.classList.remove('btn-primary'); locBtn.textContent = '📍 使用定位获取当前位置'; UI.toast('已关闭定位');
-          }
-        });
-        // 在「完成」按钮里统一保存城市
-        setTimeout(() => {
-          const done = document.querySelector('.modal-actions .btn-primary');
-          if (done) done.addEventListener('click', () => { wrap._apply(); });
-        }, 0);
-        return UI.el('div', {}, [wrap, locBtn]);
-      })()
-    ]);
-    UI.openModal({ title: '外观设置', body, actions: [{ text: '完成', kind: 'btn-primary' }] });
-  };
-
   // ---------- 初始化 ----------
   let _inited = false;
   function init() {
@@ -297,7 +179,6 @@
       const btn = UI.el('button', {
         class: 'nav-item', 'data-route': n.key,
       onclick: () => {
-        if (n.key === 'settings') { if (UI.isMobile()) closeSidebar(false); window.openSettings(); return; }
         // 先设路由再关抽屉，避免 closeSidebar 的 history.back() 与 hash 赋值竞态导致跳转失效
         setRoute(n.key);
         if (UI.isMobile()) closeSidebar(false);
@@ -315,9 +196,6 @@
       else sb.classList.toggle('collapsed');
     });
     scrim.addEventListener('click', () => closeSidebar());
-
-    // 应用已保存的主题
-    (function () { try { applyTheme(localStorage.getItem(THEME_KEY) || 'pink'); } catch (e) {} })();
 
       // 注册视图（Period 需先于 Home，因为首页依赖其预测方法）
       if (window.PeriodView) PeriodView.register();

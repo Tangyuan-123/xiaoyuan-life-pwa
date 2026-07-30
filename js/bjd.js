@@ -33,18 +33,7 @@ window.BjdView = {
       } else {
         const dolls = all.slice()
           .filter((d) => _filter === '全部' || (d.category || '娃头') === _filter)
-          .filter((d) => _bjdStatusFilter === '全部' || (d.status || '未收到') === _bjdStatusFilter)
           .sort((a, b) => (b.acquired || '').localeCompare(a.acquired || '') || a.name.localeCompare(b.name));
-
-        // 状态筛选（小按钮）
-        const statusTabs = UI.el('div', { class: 'status-tabs', style: 'margin-bottom:14px;' });
-        ['全部', '已收到', '未收到', '定金中'].forEach((st) => {
-          statusTabs.appendChild(UI.el('button', {
-            class: 'status-tab' + (_bjdStatusFilter === st ? ' active' : ''),
-            onclick: () => { _bjdStatusFilter = st; window.rerenderCurrent(); }
-          }, st));
-        });
-        wrap.appendChild(statusTabs);
 
         // 统计（按当前筛选）
         const total = dolls.reduce((s, d) => s + (parseFloat(d.price) || 0), 0);
@@ -199,7 +188,6 @@ function wishForm(existing) {
 const CATS = ['娃头', '假发', '娃体', '娃衣', '其他'];
 const PHYSICAL_CATS = ['娃头', '假发', '娃体']; // 仅这些分类显示 肤色/头围/脖围/性别
 let _filter = '全部';
-let _bjdStatusFilter = '全部';
 let _wishToRemoveOnSave = null;
 
 let _urls = [];
@@ -226,10 +214,6 @@ function dollCard(d) {
     ])
   ]));
   card.addEventListener('click', () => dollDetail(d));
-  card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); dollForm(d); } }, '编辑'),
-    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delDoll(d); } })
-  ]));
   return card;
 }
 
@@ -334,8 +318,8 @@ function dollForm(existing, defaultCat, prefill) {
     UI.el('div', { id: 'd-physical' }, [
       B_field('肤色', UI.el('input', { type: 'text', id: 'd-skin', value: init.skin || '', placeholder: '如 粉白 / 小麦' })),
       UI.el('div', { class: 'row' }, [
-        B_field('头围 (cm)', UI.el('input', { type: 'text', id: 'd-headcirc', inputmode: 'text', value: init.headCirc || '', placeholder: '如 22-23（弹力发网可填范围）' })),
-        B_field('脖围 (cm)', UI.el('input', { type: 'text', id: 'd-neckcirc', inputmode: 'text', value: init.neckCirc || '', placeholder: '如 12-13' }))
+        B_field('头围 (cm)', UI.el('input', { type: 'number', id: 'd-headcirc', step: '0.1', min: '0', value: init.headCirc || '', placeholder: '选填' })),
+        B_field('脖围 (cm)', UI.el('input', { type: 'number', id: 'd-neckcirc', step: '0.1', min: '0', value: init.neckCirc || '', placeholder: '选填' }))
       ]),
       B_field('性别', UI.el('select', { id: 'd-gender' }, [
         UI.el('option', { value: '' }, '不填'),

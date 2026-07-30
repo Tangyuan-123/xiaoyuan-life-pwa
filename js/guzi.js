@@ -65,15 +65,10 @@ function guziCard(g) {
     ]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '种类：' + (g.type || '—')),
-      UI.el('div', {}, '数量：' + (g.qty ? g.qty + ' 件' : '1 件')),
       UI.el('div', {}, '价格：' + (g.price ? '¥' + g.price : '—'))
     ])
   ]));
   card.addEventListener('click', () => guziDetail(g));
-  card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); guziForm(g); } }, '编辑'),
-    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); guziDelGuzi(g); } })
-  ]));
   return card;
 }
 
@@ -92,7 +87,7 @@ function guziDetail(g) {
   }
   body.appendChild(UI.el('hr', { class: 'sep' }));
   const info = [
-    ['名称', g.name], ['角色', g.character], ['种类', g.type], ['数量', (g.qty ? g.qty : 1) + ' 件'], ['是否已到手', g.received || '未到手'],
+    ['名称', g.name], ['角色', g.character], ['种类', g.type], ['是否已到手', g.received || '未到手'],
     ['价格', g.price ? '¥' + g.price : ''], ['入手日期', g.date], ['备注', g.note]
   ];
   info.forEach(([k, v]) => {
@@ -175,9 +170,8 @@ function guziForm(existing) {
     })()),
     UI.el('div', { class: 'row' }, [
       guziField('种类', UI.el('select', { id: 'g-type' }, GUZI_TYPES.map((t) => UI.el('option', { value: t, selected: (init.type || '吧唧') === t ? '' : null }, t)))),
-      guziField('数量', UI.el('input', { type: 'number', id: 'g-qty', min: '1', step: '1', value: init.qty || '1', placeholder: '默认 1' }))
+      guziField('价格 (¥)', UI.el('input', { type: 'number', id: 'g-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' }))
     ]),
-    guziField('价格 (¥)', UI.el('input', { type: 'number', id: 'g-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' })),
     UI.el('div', { class: 'row' }, [
       guziField('是否已到手', UI.el('select', { id: 'g-received' }, [
         UI.el('option', { value: '未到手', selected: (init.received || '未到手') === '未到手' ? '' : null }, '未到手'),
@@ -202,7 +196,6 @@ function guziForm(existing) {
           name,
           character,
           type: document.getElementById('g-type').value,
-          qty: parseInt(document.getElementById('g-qty').value, 10) || 1,
           price: document.getElementById('g-price').value || '',
           received: document.getElementById('g-received').value,
           date: document.getElementById('g-date').value,
