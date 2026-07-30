@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#FF6B9D" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="小圆助手" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" href="assets/favicon-64.png" />
+  <link rel="apple-touch-icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <title>小圆生活助手</title>
+</head>
+<body>
+  <div id="app">
+    <!-- 侧边栏 -->
+    <aside id="sidebar">
+      <div class="brand">
+        <div class="logo">圆</div>
+        <div>
+          <div class="title">小圆助手</div>
+          <div class="subtitle">你的粉色生活小帮手</div>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sidebar-foot">本地存储 · 离线可用<br/>v1.0 🌸</div>
+    </aside>
+
+    <!-- 主区 -->
+    <div id="main">
+      <header class="topbar">
+        <button id="menu-btn" class="icon-btn" aria-label="菜单"></button>
+        <h1 id="page-title">小圆生活助手</h1>
+      </header>
+      <main class="content" id="view"></main>
+    </div>
+  </div>
+
+  <div id="scrim"></div>
+
+  <!-- 底部弹窗 -->
+  <div id="modal-mask" class="modal-mask">
+    <div id="modal" class="modal"></div>
+  </div>
+
+  <!-- 全屏横屏图表层 -->
+  <div id="fs-layer">
+    <div class="fs-bar">
+      <button id="fs-close" class="icon-btn" aria-label="关闭"></button>
+      <h3 id="fs-title">趋势图</h3>
+    </div>
+    <div class="fs-body" id="fs-body"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="js/db.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/home.js"></script>
+  <script src="js/weight.js"></script>
+  <script src="js/period.js"></script>
+    <script src="js/bjd.js"></script>
+    <script src="js/acg.js"></script>
+    <script src="js/guzi.js"></script>
+    <script src="js/assistant.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+      // 注册 Service Worker（仅在 https 下，便于手机安装到主屏 + 离线可用；localhost 开发不注册）
+      if ('serviceWorker' in navigator && location.protocol === 'https:') {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      }
+    </script>
+    <script>
+    // 侧边栏菜单/设置图标
+    document.getElementById('menu-btn').innerHTML = svg('menu');
+    document.getElementById('fs-close').innerHTML = svg('close');
+    document.getElementById('fs-close').addEventListener('click', closeFullscreen);
+    // 关闭抽屉/弹窗的 Esc 支持
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const pv = document.querySelector('.photo-viewer');
+        if (pv) { pv.remove(); }
+        else if (document.getElementById('fs-layer').classList.contains('show')) closeFullscreen();
+        else document.getElementById('modal-mask').classList.remove('show');
+      }
+    });
+  </script>
+</body>
+</html>
