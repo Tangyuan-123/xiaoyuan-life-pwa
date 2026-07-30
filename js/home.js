@@ -4,15 +4,17 @@ window.HomeView = {
     registerView('home', (root) => {
       const wrap = UI.el('div', {});
 
+      const now = new Date();
+      const nickname = (function () { try { return localStorage.getItem('xiaoyuan-nickname') || '小圆'; } catch (e) { return '小圆'; } })();
       const greeting = (() => {
-        const h = new Date().getHours();
+        const h = now.getHours();
         const t = h < 6 ? '夜深了' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好';
-        return t + '，小圆';
+        return t + '，' + nickname;
       })();
-      wrap.appendChild(UI.el('div', { class: 'card' }, [
-        UI.el('div', { style: 'font-size:20px;font-weight:800;display:flex;align-items:center;gap:6px;' }, [greeting, UI.el('span', { html: svg('flower'), style: 'color:#FF6B9D;display:inline-flex;' })]),
-        UI.el('div', { class: 'muted', style: 'margin-top:4px;' }, '今天也要好好照顾自己呀～')
-      ]));
+      const md = (now.getMonth() + 1) + '月' + now.getDate() + '日';
+      const subLine = UI.el('div', { class: 'muted', style: 'margin-top:4px;' }, '今天 ' + md + ' · 愿你拥有美好的一天 💕');
+      const greetLine = UI.el('div', { style: 'font-size:20px;font-weight:800;display:flex;align-items:center;gap:6px;' }, [greeting, UI.el('span', { html: svg('flower'), style: 'color:var(--primary);display:inline-flex;' })]);
+      wrap.appendChild(UI.el('div', { class: 'card' }, [greetLine, subLine]));
 
       // 快捷概览
       const w = Store.getArr('weight');
@@ -36,8 +38,7 @@ window.HomeView = {
         UI.el('div', { class: 'stat-row' }, [
           statBox(daysLeft == null ? '—' : (daysLeft >= 0 ? daysLeft + ' 天' : '进行中'), '距下次经期'),
           statBox(goalText, '距目标体重'),
-          statBox(acgItems.length ? (acgRecv + '/' + acgItems.length + ' 件') : '—', '二次元娃'),
-          statBox(guziItems.length ? (guziRecv + '/' + guziItems.length + ' 件') : '—', '谷子到手')
+          renderHomePhotos()
         ])
       ]);
       wrap.appendChild(overview);
@@ -77,10 +78,67 @@ window.HomeView = {
     });
   }
 };
+window.__homeRevoke = revokeHomePhotos;
 
 function statBox(v, l) {
   return UI.el('div', { class: 'stat-box' }, [
     UI.el('div', { class: 'v' }, v),
     UI.el('div', { class: 'l' }, l)
   ]);
+}
+
+/* ---------- 首页照片展示 ---------- */
+let _homePhotoUrls = [];
+function revokeHomePhotos() { _homePhotoUrls.forEach((u) => URL.revokeObjectURL(u)); _homePhotoUrls = []; }
+function homeThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _homePhotoUrls.push(u); cb(u); } }); }
+
+function renderHomePhotos() {
+  const box = UI.el('div', { class: 'stat-box home-photo-box', style: 'flex:1 1 100%;max-width:100%;' });
+  box.appendChild(UI.el('div', { class: 'l', style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;' }, [
+    UI.el('span', {}, '我喜欢的角色'),
+    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); addHomePhoto(); } }, [svg('add'), '添加'])
+  ]));
+  const strip = UI.el('div', { class: 'home-photo-strip' });
+  const photos = Store.getArr('homePhotos');
+  if (!photos.length) {
+    strip.appendChild(UI.el('div', { class: 'home-photo-empty muted' }, '还没有照片，点右上角添加喜欢的角色 💕'));
+  } else {
+    photos.forEach((p) => {
+      const wrap = UI.el('div', { class: 'home-photo-item' });
+      homeThumbURL(p.photoId, (u) => {
+        const img = UI.el('img', { src: u });
+        img.addEventListener('click', () => UI.photoViewer(photos.map((x) => x.photoId), p.photoId));
+        wrap.appendChild(img);
+      });
+      wrap.appendChild(UI.el('button', { class: 'home-photo-del', html: svg('close'), onclick: (e) => { e.stopPropagation(); delHomePhoto(p); } }));
+      strip.appendChild(wrap);
+    });
+  }
+  box.appendChild(strip);
+  return box;
+}
+
+function addHomePhoto() {
+  const inp = UI.el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+  inp.addEventListener('change', async () => {
+    for (const f of Array.from(inp.files)) {
+      try {
+        const photoId = Store.uid();
+        const blob = await DB.fileToBlob(f, 1200, 0.85);
+        await DB.put(photoId, blob);
+        Store.add('homePhotos', { photoId });
+      } catch (e) { UI.toast('图片读取失败'); }
+    }
+    UI.toast('已添加 💕'); window.rerenderCurrent();
+  });
+  inp.click();
+}
+
+function delHomePhoto(p) {
+  UI.confirm('删除照片', '确定从首页移除这张照片吗？').then((ok) => {
+    if (!ok) return;
+    DB.del(p.photoId);
+    Store.remove('homePhotos', p.id);
+    UI.toast('已移除'); window.rerenderCurrent();
+  });
 }
