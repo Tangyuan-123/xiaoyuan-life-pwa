@@ -176,6 +176,22 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .field input:focus, .field select:focus, .field textarea:focus {
   border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft);
 }
+/* 设置项行 + 开关 */
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 0 14px; }
+.setting-text { flex: 1; min-width: 0; }
+.setting-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.setting-desc { font-size: 12px; margin-top: 2px; line-height: 1.4; }
+.switch {
+  flex: none; width: 50px; height: 30px; border-radius: 999px; background: #d7d9de;
+  position: relative; cursor: pointer; transition: background .2s; user-select: none;
+}
+.switch .knob {
+  position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s;
+}
+.switch.on { background: var(--primary); }
+.switch.on .knob { transform: translateX(20px); }
+[data-theme="dark"] .switch { background: #4a4754; }
 .row { display: flex; gap: 12px; }
 .row > * { flex: 1; min-width: 0; }
 

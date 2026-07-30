@@ -33,14 +33,16 @@ window.HomeView = {
       const nextP = periodRecs.length ? nextPeriodStart(periodRecs) : null;
       const daysLeft = nextP ? UI.diffDays(UI.today(), nextP) : null;
       const goalText = (latestW && target) ? (latestW.value - target > 0 ? '还差 ' + (latestW.value - target).toFixed(1) + ' kg' : '已达标 🎉') : '未设目标';
-      const overview = UI.el('div', { class: 'card' }, [
+      const overviewChildren = [
         UI.el('div', { class: 'card-title' }, [svg('flower'), '今日概览']),
         UI.el('div', { class: 'stat-row' }, [
           statBox(daysLeft == null ? '—' : (daysLeft >= 0 ? daysLeft + ' 天' : '进行中'), '距下次经期'),
-          statBox(goalText, '距目标体重'),
-          renderHomePhotos()
+          statBox(goalText, '距目标体重')
         ])
-      ]);
+      ];
+      const photoBox = renderHomePhotos();
+      if (photoBox) overviewChildren.push(photoBox);
+      const overview = UI.el('div', { class: 'card' }, overviewChildren);
       wrap.appendChild(overview);
 
       // 功能卡
@@ -93,18 +95,21 @@ function revokeHomePhotos() { _homePhotoUrls.forEach((u) => URL.revokeObjectURL(
 function homeThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _homePhotoUrls.push(u); cb(u); } }); }
 
 function renderHomePhotos() {
-  const box = UI.el('div', { class: 'stat-box home-photo-box', style: 'flex:1 1 100%;max-width:100%;' });
-  box.appendChild(UI.el('div', { class: 'l', style: 'margin-bottom:8px;' }, '我喜欢的角色'));
-  const grid = UI.el('div', { class: 'home-photo-grid' });
   const photos = Store.getArr('homePhotos');
+  const allowAdd = !Store.data.hideHomePhotoAdd;
+  const showPhotos = photos.slice(0, 2);
+  // 关闭添加功能且没有照片时，整块隐藏
+  if (!allowAdd && showPhotos.length === 0) return null;
+  const box = UI.el('div', { class: 'stat-box home-photo-box', style: 'flex:1 1 100%;max-width:100%;' });
+  const grid = UI.el('div', { class: 'home-photo-grid' });
   for (let i = 0; i < 2; i++) {
-    if (photos[i]) {
-      const p = photos[i];
+    if (showPhotos[i]) {
+      const p = showPhotos[i];
       const cell = UI.el('div', { class: 'home-photo-cell' });
       homeThumbURL(p.photoId, (u) => { cell.appendChild(UI.el('img', { src: u })); });
-      cell.addEventListener('click', () => replaceHomePhoto(p));
+      if (allowAdd) cell.addEventListener('click', () => replaceHomePhoto(p));
       grid.appendChild(cell);
-    } else {
+    } else if (allowAdd) {
       const add = UI.el('div', { class: 'home-photo-cell home-photo-add', html: svg('add'), title: '添加照片' });
       add.addEventListener('click', () => addHomePhoto());
       grid.appendChild(add);

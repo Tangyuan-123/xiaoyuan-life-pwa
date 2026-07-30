@@ -212,10 +212,26 @@
     const curTheme = (function () { try { return localStorage.getItem(THEME_KEY) || 'pink'; } catch (e) { return 'pink'; } })();
     const nickname = (function () { try { return localStorage.getItem('xiaoyuan-nickname') || '小圆'; } catch (e) { return '小圆'; } })();
     const nickInput = UI.el('input', { type: 'text', id: 'set-nickname', value: nickname, placeholder: '如 小圆', maxlength: '12' });
+    // 今日概览添加图片开关：默认开（功能启用），关闭后首页不再显示照片添加入口
+    const addOn = !Store.data.hideHomePhotoAdd;
+    const switchEl = UI.el('div', { class: 'switch' + (addOn ? ' on' : ''), role: 'switch', 'aria-checked': addOn ? 'true' : 'false' }, UI.el('div', { class: 'knob' }));
+    switchEl.addEventListener('click', () => {
+      const on = switchEl.classList.toggle('on');
+      switchEl.setAttribute('aria-checked', on ? 'true' : 'false');
+      Store.data.hideHomePhotoAdd = !on;
+      Store.save();
+    });
     const body = UI.el('div', {}, [
       UI.el('div', { class: 'field' }, [
         UI.el('label', {}, '主页称呼'),
         nickInput
+      ]),
+      UI.el('div', { class: 'setting-row' }, [
+        UI.el('div', { class: 'setting-text' }, [
+          UI.el('div', { class: 'setting-name' }, '今日概览添加图片'),
+          UI.el('div', { class: 'setting-desc muted' }, '关闭后，首页「今日概览」不再显示照片的添加入口')
+        ]),
+        switchEl
       ])
     ]);
     UI.openModal({
