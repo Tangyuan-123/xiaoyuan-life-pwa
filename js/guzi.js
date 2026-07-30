@@ -5,6 +5,18 @@ window.GuziView = {
       const all = Store.getArr('guzi');
       const wrap = UI.el('div', {});
 
+      // 卡片交互初始化（多选 / 拖拽排序）
+      CardActions.beginView({
+        arrName: 'guzi',
+        root: wrap,
+        items: all,
+        getBuy: (g) => (parseFloat(g.price) || 0) * (parseInt(g.qty, 10) || 1),
+        getSold: (g) => (g.received === '已售出') ? (parseFloat(g.soldPrice) || 0) * (parseInt(g.qty, 10) || 1) : 0,
+        onDelete: (id) => { const g = Store.get('guzi', id); if (g) { (g.photos || []).forEach((p) => DB.del(p)); Store.remove('guzi', id); } },
+        onRerender: () => window.rerenderCurrent(),
+        reorder: (name, order) => { Store.reorder(name, order); UI.toast('顺序已保存 💕'); window.rerenderCurrent(); }
+      });
+
       // 角色标签：由数据中的「角色」去重自动生成
       const chars = [];
       all.forEach((g) => { const c = (g.character || '').trim(); if (c && !chars.includes(c)) chars.push(c); });
@@ -19,25 +31,55 @@ window.GuziView = {
       });
       wrap.appendChild(tabs);
 
-      const items = all.slice()
-        .filter((g) => _guziFilter === '全部' || (g.character || '') === _guziFilter);
+      const itemsBase = all.slice()
+        .filter((g) => _guziFilter === '全部' || (g.character || '') === _guziFilter)
+        .filter((g) => _guziStatusFilter === '全部' || (g.received || '未到手') === _guziStatusFilter);
 
-      // 统计
-      const total = items.reduce((s, g) => s + (parseFloat(g.price) || 0), 0);
-      wrap.appendChild(UI.el('div', { class: 'stat-row', style: 'margin-bottom:14px;' }, [
-        guziStatBox(items.length + ' 件', _guziFilter === '全部' ? '全部谷子' : _guziFilter),
-        guziStatBox('¥' + total.toLocaleString('zh-CN', { maximumFractionDigits: 0 }), '总花费')
-      ]));
+      // 搜索框
+      const searchWrap = guziSearchBox();
+      wrap.appendChild(searchWrap);
+
+      // 状态筛选（小按钮）
+      const statusTabs = UI.el('div', { class: 'status-tabs', style: 'margin-bottom:14px;' });
+      ['全部', '已到手', '未到手', '已售出'].forEach((st) => {
+        statusTabs.appendChild(UI.el('button', {
+          class: 'status-tab' + (_guziStatusFilter === st ? ' active' : ''),
+          onclick: () => { _guziStatusFilter = st; window.rerenderCurrent(); }
+        }, st));
+      });
+      wrap.appendChild(statusTabs);
+
+      // 统计（按当前筛选）
+      const statRow = UI.el('div', { class: 'stat-row', style: 'margin-bottom:14px;' });
+      wrap.appendChild(statRow);
 
       wrap.appendChild(UI.el('button', { class: 'btn btn-primary btn-block', style: 'margin-bottom:14px;', onclick: () => guziForm(null) }, [svg('add'), '添加谷子']));
 
-      if (items.length) {
-        const grid = UI.el('div', { class: 'bjd-grid' });
-        items.forEach((g) => grid.appendChild(guziCard(g)));
-        wrap.appendChild(grid);
-      } else {
-        wrap.appendChild(UI.el('div', { class: 'empty' }, [UI.el('div', { class: 'em-ico', html: svg('guzi') }), UI.el('div', { style: 'margin-top:8px;' }, '还没有谷子，点上面按钮加一个吧 💕')]));
+      const grid = UI.el('div', { class: 'bjd-grid' });
+      wrap.appendChild(grid);
+
+      function renderGrid() {
+        const items = itemsBase.filter((g) => guziMatch(g, _guziSearch));
+        const isSoldFilter = _guziStatusFilter === '已售出';
+        const qtyOf = (g) => (parseInt(g.qty, 10) || 1);
+        const total = items.reduce((s, g) => s + parseFloat(isSoldFilter ? ((g.soldPrice || 0) * qtyOf(g)) : ((g.price || 0) * qtyOf(g))), 0);
+        statRow.innerHTML = '';
+        statRow.appendChild(guziStatBox(items.length + ' 件', _guziFilter === '全部' ? '全部谷子' : _guziFilter));
+        statRow.appendChild(guziStatBox('¥' + total.toLocaleString('zh-CN', { maximumFractionDigits: 0 }), isSoldFilter ? '售出总额' : '总花费'));
+        grid.innerHTML = '';
+        if (items.length) {
+          items.forEach((g) => grid.appendChild(guziCard(g, grid)));
+        } else {
+          grid.appendChild(UI.el('div', { class: 'empty' }, [UI.el('div', { class: 'em-ico', html: svg('guzi') }), UI.el('div', { style: 'margin-top:8px;' }, '没有匹配的谷子，换个关键词试试 💕')]));
+        }
+        CardActions.setItems(items);
+        CardActions.refreshBar();
       }
+      renderGrid();
+
+      const searchInput = searchWrap.querySelector('#guzi-search');
+      if (searchInput) searchInput.addEventListener('input', () => { _guziSearch = searchInput.value.trim(); renderGrid(); });
+
       root.appendChild(wrap);
       window.__guziRevoke = () => guziRevokeAll();
     });
@@ -46,17 +88,19 @@ window.GuziView = {
 
 const GUZI_TYPES = ['吧唧', '亚克力立牌', '色纸', '挂件', '手办', '其他'];
 let _guziFilter = '全部';
+let _guziStatusFilter = '全部';
+let _guziSearch = '';
 
 let _guziUrls = [];
 function guziRevokeAll() { _guziUrls.forEach((u) => URL.revokeObjectURL(u)); _guziUrls = []; }
 function guziThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _guziUrls.push(u); cb(u); } }); }
 
-function guziCard(g) {
+function guziCard(g, grid) {
   const card = UI.el('div', { class: 'bjd-card' });
   const thumb = UI.el('div', { class: 'thumb', html: svg('guzi') });
   if (g.photos && g.photos.length) guziThumbURL(g.photos[0], (u) => { thumb.innerHTML = ''; const img = UI.el('img', { src: u, alt: g.name }); thumb.appendChild(img); });
   card.appendChild(thumb);
-  const recvColor = (g.received === '已到手') ? '#6BCB9C' : '#B0B7C3';
+  const recvColor = (g.received === '已到手') ? '#6BCB9C' : (g.received === '已售出') ? '#9AA6FF' : '#B0B7C3';
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [
       g.name || '未命名',
@@ -69,12 +113,30 @@ function guziCard(g) {
       UI.el('div', {}, '价格：' + (g.price ? '¥' + g.price : '—'))
     ])
   ]));
-  card.addEventListener('click', () => guziDetail(g));
   card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); guziForm(g); } }, '编辑'),
-    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); guziDelGuzi(g); } })
+    UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: (e) => { e.stopPropagation(); guziForm(g); } }),
+    UI.el('button', { class: 'icon-btn danger', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); guziDelGuzi(g); } })
   ]));
+  if (CardActions.isSelected(g.id)) card.classList.add('selected');
+  CardActions.attach(card, g, { gridEl: grid, onTap: () => guziDetail(g) });
   return card;
+}
+
+function guziMatch(g, q) {
+  if (!q) return true;
+  q = String(q).toLowerCase();
+  const hay = [g.name, g.character, g.type, g.note, g.received]
+    .filter(Boolean).join(' ').toLowerCase();
+  return hay.indexOf(q) >= 0;
+}
+
+function guziSearchBox() {
+  const box = UI.el('div', { class: 'search-box', style: 'margin-bottom:14px;' });
+  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'guzi-search', placeholder: '搜索名字 / 角色 / 种类…', value: _guziSearch });
+  box.appendChild(UI.el('span', { class: 'search-ico', html: svg('search') }));
+  box.appendChild(input);
+  if (_guziSearch) box.appendChild(UI.el('button', { class: 'search-clear', html: svg('close'), onclick: () => { _guziSearch = ''; window.rerenderCurrent(); } }));
+  return box;
 }
 
 function guziDetail(g) {
@@ -93,7 +155,7 @@ function guziDetail(g) {
   body.appendChild(UI.el('hr', { class: 'sep' }));
   const info = [
     ['名称', g.name], ['角色', g.character], ['种类', g.type], ['数量', (g.qty ? g.qty : 1) + ' 件'], ['是否已到手', g.received || '未到手'],
-    ['价格', g.price ? '¥' + g.price : ''], ['入手日期', g.date], ['备注', g.note]
+    ['价格', g.price ? '¥' + g.price : ''], ['售出金额', g.soldPrice ? '¥' + g.soldPrice : ''], ['入手日期', g.date], ['备注', g.note]
   ];
   info.forEach(([k, v]) => {
     if (!v) return;
@@ -181,13 +243,22 @@ function guziForm(existing) {
     UI.el('div', { class: 'row' }, [
       guziField('是否已到手', UI.el('select', { id: 'g-received' }, [
         UI.el('option', { value: '未到手', selected: (init.received || '未到手') === '未到手' ? '' : null }, '未到手'),
-        UI.el('option', { value: '已到手', selected: (init.received || '未到手') === '已到手' ? '' : null }, '已到手')
+        UI.el('option', { value: '已到手', selected: (init.received || '未到手') === '已到手' ? '' : null }, '已到手'),
+        UI.el('option', { value: '已售出', selected: (init.received || '未到手') === '已售出' ? '' : null }, '已售出')
       ])),
       guziField('入手日期', UI.el('input', { type: 'date', id: 'g-date', value: init.date || '' }))
+    ]),
+    UI.el('div', { id: 'g-sold-wrap', style: 'display:' + ((init.received === '已售出') ? '' : 'none') + ';' }, [
+      guziField('售出金额 (¥)', UI.el('input', { type: 'number', id: 'g-soldprice', min: '0', step: '1', value: init.soldPrice || '', placeholder: '选填' }))
     ]),
     guziField('备注', UI.el('textarea', { id: 'g-note', rows: '2', placeholder: '可选' }, init.note || '')),
     UI.el('div', { class: 'field' }, [UI.el('label', {}, '添加照片'), photoBox])
   ]);
+
+  // 状态为「已售出」时显示售出金额
+  const _gRecvSel = body.querySelector('#g-received');
+  const _gSoldWrap = body.querySelector('#g-sold-wrap');
+  if (_gRecvSel && _gSoldWrap) _gRecvSel.addEventListener('change', () => { _gSoldWrap.style.display = (_gRecvSel.value === '已售出') ? '' : 'none'; });
 
   UI.openModal({
     title: isEdit ? '编辑谷子' : '添加谷子', body,
@@ -205,6 +276,7 @@ function guziForm(existing) {
           qty: parseInt(document.getElementById('g-qty').value, 10) || 1,
           price: document.getElementById('g-price').value || '',
           received: document.getElementById('g-received').value,
+          soldPrice: document.getElementById('g-soldprice').value || '',
           date: document.getElementById('g-date').value,
           note: document.getElementById('g-note').value.trim(),
           photos: localPhotos.slice()

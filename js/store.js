@@ -20,7 +20,8 @@ const Store = (function () {
     wishes: [],            // 心愿单：想要但未拥有的娃 [{id, name, category, company, size, price, note}]
     acg: [],               // 二次元娃：[{id, name, category(娃脸壳/娃体/头壳), company, size, price, received, photos:[imgId], note, date}]
     acgWishes: [],         // 二次元娃心愿单：[{id, name, category, company, size, price, note}]
-    guzi: []               // 谷子助手：[{id, name, character, type, price, received, photos:[imgId], note}]
+    guzi: [],              // 谷子助手：[{id, name, character, type, price, received, photos:[imgId], note}]
+    homePhotos: []         // 首页展示照片：[{id, photoId}]
   };
 
   let data = load();
@@ -60,6 +61,20 @@ const Store = (function () {
     return null;
   }
   function get(name, id) { return getArr(name).find((x) => x.id === id) || null; }
+  // 拖拽排序：order 为「当前可见项」的新 id 顺序（不含被筛选隐藏的项）。
+  // 隐藏项保持原有相对位置，可见项按新顺序填入原本属于可见项的位置。
+  function reorder(name, idOrder) {
+    const a = getArr(name);
+    const map = {}; a.forEach((x) => { map[x.id] = x; });
+    let vi = 0;
+    const seen = {};
+    const result = a.map((x) => {
+      const pos = idOrder.indexOf(x.id);
+      if (pos >= 0 && !seen[x.id]) { seen[x.id] = true; return map[idOrder[vi++]]; }
+      return x;
+    });
+    data[name] = result; save(); return result;
+  }
 
   // ---- 导出 / 导入（备份） ----
   function exportJSON() { return JSON.stringify(data, null, 2); }
@@ -72,7 +87,7 @@ const Store = (function () {
   return {
     get data() { return data; },
     save, uid, today,
-    getArr, add, update, remove, get,
+    getArr, add, update, remove, get, reorder,
     exportJSON, importJSON
   };
 })();

@@ -3,7 +3,7 @@
  * 这样每次刷新都能拿到 GitHub 上的最新代码，断网时仍可打开。
  * 每次发布新版请递增 CACHE 版本号，旧缓存会在 activate 时清空。
  */
-const CACHE = 'xiaoyuan-v2';
+const CACHE = 'xiaoyuan-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -13,13 +13,13 @@ const ASSETS = [
   './js/store.js',
   './js/chart.js',
   './js/icons.js',
+  './js/actions.js',
   './js/home.js',
   './js/weight.js',
   './js/period.js',
   './js/bjd.js',
   './js/acg.js',
   './js/guzi.js',
-  './js/assistant.js',
   './js/app.js',
   './assets/favicon-64.png',
   './assets/icon-192.png',

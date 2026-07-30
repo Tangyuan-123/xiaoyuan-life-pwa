@@ -132,6 +132,7 @@
     });
     document.getElementById('page-title').textContent = (NAV.find((n) => n.key === name) || {}).label || '小圆生活助手';
     if (window.__bjdRevoke) window.__bjdRevoke();
+    if (window.__homeRevoke) window.__homeRevoke();
     if (UI.isMobile() && sidebarOpen) closeSidebar(false);
   }
 
@@ -217,10 +218,11 @@
 
   window.openSettings = function () {
     if (UI.isMobile() && sidebarOpen) closeSidebar(false);
-    const cur = (function () { try { return localStorage.getItem(THEME_KEY) || 'pink'; } catch (e) { return 'pink'; } })();
+    const curTheme = (function () { try { return localStorage.getItem(THEME_KEY) || 'pink'; } catch (e) { return 'pink'; } })();
+    const nickname = (function () { try { return localStorage.getItem('xiaoyuan-nickname') || '小圆'; } catch (e) { return '小圆'; } })();
     const grid = UI.el('div', { class: 'theme-grid' });
     THEMES.forEach((t) => {
-      const sw = UI.el('div', { class: 'theme-swatch' + (t.id === cur ? ' active' : ''), 'data-id': t.id }, [
+      const sw = UI.el('div', { class: 'theme-swatch' + (t.id === curTheme ? ' active' : ''), 'data-id': t.id }, [
         UI.el('div', { class: 'dot', style: 'background:' + t.color }, t.id === 'dark' ? '' : ''),
         UI.el('div', { class: 'lab' }, t.name)
       ]);
@@ -232,58 +234,31 @@
       });
       grid.appendChild(sw);
     });
+    const nickInput = UI.el('input', { type: 'text', id: 'set-nickname', value: nickname, placeholder: '如 小圆', maxlength: '12' });
     const body = UI.el('div', {}, [
+      UI.el('div', { class: 'field' }, [
+        UI.el('label', {}, '主页称呼'),
+        nickInput
+      ]),
       UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:14px;' }, '选择喜欢的马卡龙配色，或开启深夜模式。设置会自动保存。'),
-      grid,
-      UI.el('hr', { class: 'sep' }),
-      UI.el('div', { class: 'card-title', style: 'margin:0 0 12px;' }, [svg('guzi'), '天气设置']),
-      (function () {
-        const W = window.Weather;
-        const cur = W ? W.getCity() : '河南,平顶山';
-        const ci = cur.indexOf(',');
-        const curProv = ci >= 0 ? cur.slice(0, ci) : '河南';
-        const curCity = ci >= 0 ? cur.slice(ci + 1) : '平顶山';
-        const provSel = UI.el('select', { id: 'set-prov', class: 'row' },
-          Object.keys(W ? W.PROVINCE_CITY : {}).map((p) => UI.el('option', { value: p, selected: p === curProv ? '' : null }, p)));
-        const citySel = UI.el('select', { id: 'set-city' });
-        function fillCities(prov) {
-          citySel.innerHTML = '';
-          (W && W.PROVINCE_CITY[prov] || []).forEach(([c]) => {
-            citySel.appendChild(UI.el('option', { value: c, selected: c === curCity ? '' : null }, c));
-          });
-        }
-        fillCities(curProv);
-        provSel.addEventListener('change', () => fillCities(provSel.value));
-        const wrap = UI.el('div', { class: 'field' }, [
-          UI.el('label', {}, '默认城市（省 - 市）'),
-          UI.el('div', { class: 'row' }, [provSel, citySel])
-        ]);
-        wrap._apply = () => { if (W) W.setCity(provSel.value + ',' + citySel.value); };
-        // 定位开关
-        const locOn = W ? W.getLocate() : false;
-        const locBtn = UI.el('button', { class: 'btn btn-sm' + (locOn ? ' btn-primary' : ''), style: 'margin-top:8px;' }, locOn ? '📍 定位已开启' : '📍 使用定位获取当前位置');
-        locBtn.addEventListener('click', () => {
-          if (!('geolocation' in navigator)) { UI.toast('当前环境不支持定位'); return; }
-          const turnOn = !(W && W.getLocate());
-          if (turnOn) {
-            UI.toast('正在获取定位…');
-            navigator.geolocation.getCurrentPosition(
-              () => { if (W) W.setLocate(true); locBtn.classList.add('btn-primary'); locBtn.textContent = '📍 定位已开启'; UI.toast('定位成功，将自动显示当前位置天气 💕'); },
-              () => { if (W) W.setLocate(false); locBtn.classList.remove('btn-primary'); locBtn.textContent = '📍 使用定位获取当前位置'; UI.toast('定位失败，已使用默认城市'); }
-            );
-          } else {
-            if (W) W.setLocate(false); locBtn.classList.remove('btn-primary'); locBtn.textContent = '📍 使用定位获取当前位置'; UI.toast('已关闭定位');
-          }
-        });
-        // 在「完成」按钮里统一保存城市
-        setTimeout(() => {
-          const done = document.querySelector('.modal-actions .btn-primary');
-          if (done) done.addEventListener('click', () => { wrap._apply(); });
-        }, 0);
-        return UI.el('div', {}, [wrap, locBtn]);
-      })()
+      grid
     ]);
-    UI.openModal({ title: '外观设置', body, actions: [{ text: '完成', kind: 'btn-primary' }] });
+    UI.openModal({
+      title: '设置',
+      body,
+      actions: [
+        { text: '取消', kind: 'btn-ghost' },
+        { text: '完成', kind: 'btn-primary', onClick: (c) => {
+          const newNick = nickInput.value.trim();
+          if (newNick) {
+            try { localStorage.setItem('xiaoyuan-nickname', newNick); } catch (e) {}
+          } else {
+            try { localStorage.removeItem('xiaoyuan-nickname'); } catch (e) {}
+          }
+          c(); window.rerenderCurrent();
+        } }
+      ]
+    });
   };
 
   // ---------- 初始化 ----------
