@@ -354,7 +354,7 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 
 .stat-row { display: flex; flex-wrap: wrap; gap: 12px; }
 .stat-box { flex: 1 1 calc(50% - 6px); min-width: 130px; max-width: 100%; background: var(--surface); border-radius: var(--radius-sm); padding: 14px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
-.stat-box .v { font-size: 24px; font-weight: 800; color: var(--primary-deep); }
+.stat-box .v { font-size: 20px; font-weight: 800; color: var(--primary-deep); line-height: 1.2; white-space: nowrap; }
 .stat-box .l { font-size: 12.5px; color: var(--text-soft); margin-top: 2px; }
 
 .home-photo-box { min-height: 90px; }
