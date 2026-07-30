@@ -95,11 +95,10 @@ function revokeHomePhotos() { _homePhotoUrls.forEach((u) => URL.revokeObjectURL(
 function homeThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _homePhotoUrls.push(u); cb(u); } }); }
 
 function renderHomePhotos() {
+  // 关闭「今日概览照片」功能后，整块隐藏（含已添加的照片）
+  if (Store.data.hideHomePhotoAdd) return null;
   const photos = Store.getArr('homePhotos');
-  const allowAdd = !Store.data.hideHomePhotoAdd;
   const showPhotos = photos.slice(0, 2);
-  // 关闭添加功能且没有照片时，整块隐藏
-  if (!allowAdd && showPhotos.length === 0) return null;
   const box = UI.el('div', { class: 'stat-box home-photo-box', style: 'flex:1 1 100%;max-width:100%;' });
   const grid = UI.el('div', { class: 'home-photo-grid' });
   for (let i = 0; i < 2; i++) {
@@ -107,9 +106,9 @@ function renderHomePhotos() {
       const p = showPhotos[i];
       const cell = UI.el('div', { class: 'home-photo-cell' });
       homeThumbURL(p.photoId, (u) => { cell.appendChild(UI.el('img', { src: u })); });
-      if (allowAdd) cell.addEventListener('click', () => replaceHomePhoto(p));
+      cell.addEventListener('click', () => replaceHomePhoto(p));
       grid.appendChild(cell);
-    } else if (allowAdd) {
+    } else {
       const add = UI.el('div', { class: 'home-photo-cell home-photo-add', html: svg('add'), title: '添加照片' });
       add.addEventListener('click', () => addHomePhoto());
       grid.appendChild(add);

@@ -212,7 +212,7 @@
     const curTheme = (function () { try { return localStorage.getItem(THEME_KEY) || 'pink'; } catch (e) { return 'pink'; } })();
     const nickname = (function () { try { return localStorage.getItem('xiaoyuan-nickname') || '小圆'; } catch (e) { return '小圆'; } })();
     const nickInput = UI.el('input', { type: 'text', id: 'set-nickname', value: nickname, placeholder: '如 小圆', maxlength: '12' });
-    // 今日概览添加图片开关：默认开（功能启用），关闭后首页不再显示照片添加入口
+    // 今日概览照片开关：默认开（功能启用），关闭后首页照片区整块隐藏（含已添加照片）
     const addOn = !Store.data.hideHomePhotoAdd;
     const switchEl = UI.el('div', { class: 'switch' + (addOn ? ' on' : ''), role: 'switch', 'aria-checked': addOn ? 'true' : 'false' }, UI.el('div', { class: 'knob' }));
     switchEl.addEventListener('click', () => {
@@ -228,8 +228,8 @@
       ]),
       UI.el('div', { class: 'setting-row' }, [
         UI.el('div', { class: 'setting-text' }, [
-          UI.el('div', { class: 'setting-name' }, '今日概览添加图片'),
-          UI.el('div', { class: 'setting-desc muted' }, '关闭后，首页「今日概览」不再显示照片的添加入口')
+          UI.el('div', { class: 'setting-name' }, '今日概览照片'),
+          UI.el('div', { class: 'setting-desc muted' }, '关闭后，首页「今日概览」不再显示照片区（含已添加的照片）')
         ]),
         switchEl
       ])
