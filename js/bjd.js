@@ -33,7 +33,18 @@ window.BjdView = {
       } else {
         const dolls = all.slice()
           .filter((d) => _filter === '全部' || (d.category || '娃头') === _filter)
+          .filter((d) => _bjdStatusFilter === '全部' || (d.status || '未收到') === _bjdStatusFilter)
           .sort((a, b) => (b.acquired || '').localeCompare(a.acquired || '') || a.name.localeCompare(b.name));
+
+        // 状态筛选（小按钮）
+        const statusTabs = UI.el('div', { class: 'status-tabs', style: 'margin-bottom:14px;' });
+        ['全部', '已收到', '未收到', '定金中'].forEach((st) => {
+          statusTabs.appendChild(UI.el('button', {
+            class: 'status-tab' + (_bjdStatusFilter === st ? ' active' : ''),
+            onclick: () => { _bjdStatusFilter = st; window.rerenderCurrent(); }
+          }, st));
+        });
+        wrap.appendChild(statusTabs);
 
         // 统计（按当前筛选）
         const total = dolls.reduce((s, d) => s + (parseFloat(d.price) || 0), 0);
@@ -188,6 +199,7 @@ function wishForm(existing) {
 const CATS = ['娃头', '假发', '娃体', '娃衣', '其他'];
 const PHYSICAL_CATS = ['娃头', '假发', '娃体']; // 仅这些分类显示 肤色/头围/脖围/性别
 let _filter = '全部';
+let _bjdStatusFilter = '全部';
 let _wishToRemoveOnSave = null;
 
 let _urls = [];
