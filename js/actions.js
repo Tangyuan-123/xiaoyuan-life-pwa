@@ -170,7 +170,7 @@ window.CardActions = (function () {
     cardEl.addEventListener('pointermove', (e) => {
       if (!startT) return;
       const dx = e.clientX - startX, dy = e.clientY - startY;
-      if (!moved && Math.hypot(dx, dy) > 10) {
+      if (!moved && Math.hypot(dx, dy) > 16) {
         moved = true;
         if (timer && !longPressed) clearTimer(); // 视为滚动，放弃长按
       }
@@ -202,3 +202,25 @@ window.CardActions = (function () {
 
   return { beginView, attach, isSelecting, isSelected, refreshBar, setItems, exitSelect };
 })();
+
+/* 共享：肤色选择组件
+ * 用真实 <select>（白/粉/普/烧）+「自定义」可填写，保证下拉框一定有内容
+ * （修复部分浏览器 <input list> 不显示建议的问题）。最终值统一存在 #skin-value。
+ */
+window.makeSkinField = function (initValue) {
+  const FIXED = ['白', '粉', '普', '烧'];
+  const isCustom = initValue && !FIXED.includes(initValue);
+  const sel = UI.el('select', { id: 'skin-sel' },
+    FIXED.map((s) => UI.el('option', { value: s, selected: (initValue === s) ? '' : null }, s))
+      .concat([UI.el('option', { value: '__custom__', selected: isCustom ? '' : null }, '自定义…')])
+  );
+  const input = UI.el('input', { type: 'text', id: 'skin-value', placeholder: '填写自定义肤色', value: isCustom ? initValue : '' });
+  const wrap = UI.el('div', { class: 'skin-field' }, [sel, input]);
+  function sync() {
+    if (sel.value === '__custom__') { input.style.display = ''; input.style.marginTop = '8px'; }
+    else { input.style.display = 'none'; input.value = sel.value; }
+  }
+  sel.addEventListener('change', sync);
+  sync();
+  return wrap;
+};

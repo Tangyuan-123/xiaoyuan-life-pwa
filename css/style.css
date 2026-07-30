@@ -515,3 +515,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
   display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px;
 }
 .theme-swatch .lab { font-size: 12px; font-weight: 700; color: var(--text); }
+
+/* 肤色选择：下拉 + 自定义填写 */
+.skin-field { display: flex; flex-direction: column; gap: 8px; }
+.skin-field select, .skin-field input { width: 100%; box-sizing: border-box; }

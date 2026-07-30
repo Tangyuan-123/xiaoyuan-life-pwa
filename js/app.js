@@ -200,48 +200,23 @@
   }, { passive: true });
   document.addEventListener('touchend', () => { touchStartX = null; });
 
-  // ---------- 主题切换 ----------
-  const THEMES = [
-    { id: 'pink', name: '粉色', color: '#FF6B9D' },
-    { id: 'purple', name: '紫色', color: '#9B6DFF' },
-    { id: 'blue', name: '蓝色', color: '#3DA5FF' },
-    { id: 'green', name: '绿色', color: '#3DB98A' },
-    { id: 'yellow', name: '黄色', color: '#F0B429' },
-    { id: 'dark', name: '深夜', color: '#15131C' }
-  ];
+  // ---------- 主题（保留已保存主题的生效，设置入口已移除） ----------
   const THEME_KEY = 'xiaoyuan-theme';
   function applyTheme(id) {
     if (!id || id === 'pink') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', id);
   }
-  function saveTheme(id) { try { localStorage.setItem(THEME_KEY, id || 'pink'); } catch (e) {} applyTheme(id); }
 
   window.openSettings = function () {
     if (UI.isMobile() && sidebarOpen) closeSidebar(false);
     const curTheme = (function () { try { return localStorage.getItem(THEME_KEY) || 'pink'; } catch (e) { return 'pink'; } })();
     const nickname = (function () { try { return localStorage.getItem('xiaoyuan-nickname') || '小圆'; } catch (e) { return '小圆'; } })();
-    const grid = UI.el('div', { class: 'theme-grid' });
-    THEMES.forEach((t) => {
-      const sw = UI.el('div', { class: 'theme-swatch' + (t.id === curTheme ? ' active' : ''), 'data-id': t.id }, [
-        UI.el('div', { class: 'dot', style: 'background:' + t.color }, t.id === 'dark' ? '' : ''),
-        UI.el('div', { class: 'lab' }, t.name)
-      ]);
-      sw.addEventListener('click', () => {
-        grid.querySelectorAll('.theme-swatch').forEach((x) => x.classList.remove('active'));
-        sw.classList.add('active');
-        saveTheme(t.id);
-        UI.toast('已切换为' + t.name + '主题 💕');
-      });
-      grid.appendChild(sw);
-    });
     const nickInput = UI.el('input', { type: 'text', id: 'set-nickname', value: nickname, placeholder: '如 小圆', maxlength: '12' });
     const body = UI.el('div', {}, [
       UI.el('div', { class: 'field' }, [
         UI.el('label', {}, '主页称呼'),
         nickInput
-      ]),
-      UI.el('p', { class: 'muted', style: 'font-size:13px;margin-bottom:14px;' }, '选择喜欢的马卡龙配色，或开启深夜模式。设置会自动保存。'),
-      grid
+      ])
     ]);
     UI.openModal({
       title: '设置',

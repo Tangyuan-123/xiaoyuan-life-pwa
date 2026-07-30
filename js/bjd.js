@@ -157,25 +157,60 @@ function renderWishlist(wrap, wishes) {
 
 function wishCard(w) {
   const card = UI.el('div', { class: 'bjd-card' });
-  card.appendChild(UI.el('div', { class: 'thumb', html: svg('heart'), style: 'background:#FDEAF1;color:#FF6B9D;' }));
+  const thumb = UI.el('div', { class: 'thumb', html: svg('heart'), style: 'background:#FDEAF1;color:#FF6B9D;' });
+  if (w.photos && w.photos.length) thumbURL(w.photos[0], (u) => { thumb.innerHTML = ''; const img = UI.el('img', { src: u, alt: w.name }); thumb.appendChild(img); });
+  card.appendChild(thumb);
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [w.name || '未命名', UI.el('span', { class: 'badge cat' }, (w.category || '娃头'))]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '娃社：' + (w.company || '—')),
-      UI.el('div', {}, '尺寸：' + (w.size || '—') + ' · 预估 ' + (w.price ? '¥' + w.price : '—'))
+      UI.el('div', {}, '尺寸：' + (w.size || '—') + ' · 预估 ' + (w.price ? '¥' + w.price : '—')),
+      UI.el('div', {}, '开售：' + (w.release || '—'))
     ])
   ]));
-  card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: (e) => { e.stopPropagation(); wishForm(w); } }),
-    UI.el('button', { class: 'icon-btn danger', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delWish(w); } })
-  ]));
-  card.addEventListener('click', () => wishForm(w));
+  card.addEventListener('click', () => wishDetail(w));
   return card;
+}
+
+function wishDetail(w) {
+  const body = UI.el('div', {});
+  if (w.photos && w.photos.length) {
+    const grid = UI.el('div', { class: 'photo-grid' });
+    w.photos.forEach((pid) => thumbURL(pid, (u) => {
+      const ph = UI.el('div', { class: 'pg-item' }, UI.el('img', { src: u, alt: w.name }));
+      ph.addEventListener('click', () => UI.photoViewer(w.photos, pid));
+      grid.appendChild(ph);
+    }));
+    body.appendChild(grid);
+  } else {
+    body.appendChild(UI.el('div', { class: 'muted', style: 'padding:8px 0;' }, '暂无照片'));
+  }
+  body.appendChild(UI.el('hr', { class: 'sep' }));
+  const info = [
+    ['名字', w.name], ['分类', w.category || '娃头'], ['娃社', w.company],
+    ['尺寸', w.size], ['预估价格', w.price ? '¥' + w.price : ''],
+    ['开售时间', w.release || ''], ['备注', w.note]
+  ];
+  info.forEach(([k, v]) => {
+    if (!v) return;
+    body.appendChild(UI.el('div', { style: 'display:flex;gap:10px;padding:5px 0;' }, [
+      UI.el('div', { class: 'muted', style: 'width:80px;flex:none;' }, k),
+      UI.el('div', { style: 'font-weight:600;' }, String(v))
+    ]));
+  });
+  UI.openModal({
+    title: w.name || '心愿详情', body,
+    actions: [
+      { text: '关闭', kind: 'btn-ghost' },
+      { text: '删除', kind: 'btn-danger', onClick: (c) => { c(); delWish(w); } },
+      { text: '编辑', kind: 'btn-primary', onClick: (c) => { c(); wishForm(w); } }
+    ]
+  });
 }
 
 function moveWishToDoll(w) {
   _wishToRemoveOnSave = w.id;
-  dollForm(null, w.category, { name: w.name, category: w.category, company: w.company, size: w.size, price: w.price, note: w.note, status: '未收到' });
+  dollForm(null, w.category, { name: w.name, category: w.category, company: w.company, size: w.size, price: w.price, note: w.note, release: w.release, photos: w.photos ? w.photos.slice() : [], status: '未收到' });
 }
 
 function delWish(w) {
@@ -188,6 +223,44 @@ function delWish(w) {
 
 function wishForm(existing) {
   const isEdit = !!existing;
+  let localPhotos = existing && existing.photos ? existing.photos.slice() : [];
+
+  const photoBox = UI.el('div', {});
+  const fileInput = UI.el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+  fileInput.addEventListener('change', async () => {
+    for (const f of Array.from(fileInput.files)) {
+      try {
+        const id = Store.uid();
+        const blob = await DB.fileToBlob(f, 1000, 0.82);
+        await DB.put(id, blob);
+        localPhotos.push(id);
+      } catch (e) { UI.toast('图片读取失败'); }
+    }
+    fileInput.value = '';
+    refreshStrip();
+  });
+  function refreshStrip() {
+    photoBox.innerHTML = '';
+    const strip = UI.el('div', { class: 'photo-strip' });
+    localPhotos.forEach((pid, idx) => {
+      thumbURL(pid, (u) => {
+        const ph = UI.el('div', { class: 'ph' }, [
+          UI.el('img', { src: u }),
+          UI.el('button', { class: 'del', html: svg('close'), onclick: () => {
+            localPhotos.splice(idx, 1);
+            DB.del(pid);
+            refreshStrip();
+          } })
+        ]);
+        strip.appendChild(ph);
+      });
+    });
+    photoBox.appendChild(strip);
+    photoBox.appendChild(UI.el('button', { class: 'btn btn-sm', style: 'margin-top:8px;', onclick: () => fileInput.click() }, [svg('camera'), '从手机相册添加照片']));
+    photoBox.appendChild(fileInput);
+  }
+  refreshStrip();
+
   const body = UI.el('div', {}, [
     B_field('名字', UI.el('input', { type: 'text', id: 'w-name', value: existing ? (existing.name || '') : '', placeholder: '想要的娃' })),
     UI.el('div', { class: 'field' }, [
@@ -201,7 +274,9 @@ function wishForm(existing) {
     UI.el('div', { class: 'row' }, [
       B_field('预估价格 (¥)', UI.el('input', { type: 'number', id: 'w-price', min: '0', step: '1', value: existing ? (existing.price || '') : '', placeholder: '选填' }))
     ]),
-    B_field('备注', UI.el('textarea', { id: 'w-note', rows: '2', placeholder: '可选' }, existing ? (existing.note || '') : ''))
+    B_field('开售时间 (选填)', UI.el('input', { type: 'date', id: 'w-release', value: existing ? (existing.release || '') : '' })),
+    B_field('备注', UI.el('textarea', { id: 'w-note', rows: '2', placeholder: '可选' }, existing ? (existing.note || '') : '')),
+    UI.el('div', { class: 'field' }, [UI.el('label', {}, '照片'), photoBox])
   ]);
   const actions = [
     { text: '取消', kind: 'btn-ghost' }
@@ -221,9 +296,17 @@ function wishForm(existing) {
       company: document.getElementById('w-company').value.trim(),
       size: document.getElementById('w-size').value.trim(),
       price: document.getElementById('w-price').value || '',
-      note: document.getElementById('w-note').value.trim()
+      release: document.getElementById('w-release').value || '',
+      note: document.getElementById('w-note').value.trim(),
+      photos: localPhotos.slice()
     };
-    if (isEdit) Store.update('wishes', existing.id, obj); else Store.add('wishes', obj);
+    if (isEdit) {
+      const removed = (existing.photos || []).filter((p) => !localPhotos.includes(p));
+      removed.forEach((p) => DB.del(p));
+      Store.update('wishes', existing.id, obj);
+    } else {
+      Store.add('wishes', obj);
+    }
     UI.toast('已保存 💕'); c(); window.rerenderCurrent();
   } });
   UI.openModal({
@@ -236,7 +319,6 @@ const CATS = ['娃头', '假发', '娃体', '娃衣', '其他'];
 const BJD_CAT_COLORS = { '娃头': '#FF6B9D', '假发': '#7A4DD6', '娃体': '#3DB2FF', '娃衣': '#FFB14D', '其他': '#6BCB9C' };
 const PHYSICAL_CATS = ['娃头', '假发', '娃体']; // 仅这些分类显示 头围/脖围/性别
 const SKIN_CATS = ['娃头', '娃体'];            // 仅这些分类显示 肤色
-const BJD_SKINS = ['粉', '普', '烧'];
 let _filter = '全部';
 let _bjdStatusFilter = '全部';
 let _bjdSearch = '';
@@ -261,13 +343,9 @@ function dollCard(d, grid) {
     ]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '娃社：' + (d.company || '—')),
-      UI.el('div', {}, '尺寸：' + (d.size || '—') + ' · 肤色：' + (d.skin || '—')),
+      UI.el('div', {}, '尺寸：' + (d.size || '—')),
       UI.el('div', {}, '价格：' + (d.price ? '¥' + d.price : '—'))
     ])
-  ]));
-  card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: (e) => { e.stopPropagation(); dollForm(d); } }),
-    UI.el('button', { class: 'icon-btn danger', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delDoll(d); } })
   ]));
   if (CardActions.isSelected(d.id)) card.classList.add('selected');
   CardActions.attach(card, d, { gridEl: grid, onTap: () => dollDetail(d) });
@@ -339,7 +417,7 @@ function dollForm(existing, defaultCat, prefill) {
   const init = prefill || (existing || {});
   const initCat = existing ? existing.category : (defaultCat || (prefill && prefill.category) || '娃头');
   const initSkin = existing ? (existing.skin || '') : (SKIN_CATS.includes(initCat) ? '白' : '');
-  let localPhotos = existing && existing.photos ? existing.photos.slice() : [];
+  let localPhotos = (existing && existing.photos) ? existing.photos.slice() : (prefill && prefill.photos ? prefill.photos.slice() : []);
 
   const photoBox = UI.el('div', {});
   const fileInput = UI.el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
@@ -391,8 +469,7 @@ function dollForm(existing, defaultCat, prefill) {
     B_field('价格 (¥)', UI.el('input', { type: 'number', id: 'd-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' })),
     // 肤色：仅 娃头/娃体 显示
     UI.el('div', { id: 'd-skin-wrap' }, [
-      B_field('肤色', UI.el('input', { type: 'text', id: 'd-skin', list: 'bjd-skin-list', value: initSkin, placeholder: '选择或填写' })),
-      UI.el('datalist', { id: 'bjd-skin-list' }, BJD_SKINS.map((s) => UI.el('option', { value: s }, s)))
+      B_field('肤色', makeSkinField(initSkin))
     ]),
     // 身体属性：仅 娃头/假发/娃体 显示，娃衣/其他 隐藏
     UI.el('div', { id: 'd-physical' }, [
@@ -427,12 +504,21 @@ function dollForm(existing, defaultCat, prefill) {
   const catSel = body.querySelector('#d-cat');
   const phys = body.querySelector('#d-physical');
   const skinWrap = body.querySelector('#d-skin-wrap');
-  const dSkin = body.querySelector('#d-skin');
   function toggleCatFields() {
     const cat = catSel.value;
     const showSkin = SKIN_CATS.includes(cat);
     skinWrap.style.display = showSkin ? '' : 'none';
-    if (showSkin && !dSkin.value.trim()) dSkin.value = '白';
+    if (showSkin) {
+      const sel = body.querySelector('#skin-sel');
+      const inp = document.getElementById('skin-value');
+      if (sel && sel.value === '__custom__' && !(inp && inp.value.trim())) {
+        sel.value = '白';
+        sel.dispatchEvent(new Event('change'));
+      }
+    } else {
+      const inp = document.getElementById('skin-value');
+      if (inp) inp.value = '';
+    }
     phys.style.display = PHYSICAL_CATS.includes(cat) ? '' : 'none';
   }
   catSel.addEventListener('change', toggleCatFields);
@@ -455,7 +541,7 @@ function dollForm(existing, defaultCat, prefill) {
           category: document.getElementById('d-cat').value,
           company: document.getElementById('d-company').value.trim(),
           size: document.getElementById('d-size').value.trim(),
-          skin: document.getElementById('d-skin').value.trim(),
+          skin: document.getElementById('skin-value').value.trim(),
           headCirc: document.getElementById('d-headcirc').value || '',
           neckCirc: document.getElementById('d-neckcirc').value || '',
           price: document.getElementById('d-price').value || '',

@@ -113,10 +113,6 @@ function guziCard(g, grid) {
       UI.el('div', {}, '价格：' + (g.price ? '¥' + g.price : '—'))
     ])
   ]));
-  card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: (e) => { e.stopPropagation(); guziForm(g); } }),
-    UI.el('button', { class: 'icon-btn danger', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); guziDelGuzi(g); } })
-  ]));
   if (CardActions.isSelected(g.id)) card.classList.add('selected');
   CardActions.attach(card, g, { gridEl: grid, onTap: () => guziDetail(g) });
   return card;
