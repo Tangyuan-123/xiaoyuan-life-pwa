@@ -6,6 +6,18 @@ window.BjdView = {
       const wishes = Store.getArr('wishes');
       const wrap = UI.el('div', {});
 
+      // 卡片交互初始化（多选 / 拖拽排序）
+      CardActions.beginView({
+        arrName: 'dolls',
+        root: wrap,
+        items: all,
+        getBuy: (d) => parseFloat(d.price) || 0,
+        getSold: (d) => (d.status === '已售出') ? (parseFloat(d.soldPrice) || 0) : 0,
+        onDelete: (id) => { const d = Store.get('dolls', id); if (d) { (d.photos || []).forEach((p) => DB.del(p)); Store.remove('dolls', id); } },
+        onRerender: () => window.rerenderCurrent(),
+        reorder: (name, order) => { Store.reorder(name, order); UI.toast('顺序已保存 💕'); window.rerenderCurrent(); }
+      });
+
       // 分类筛选标签（含心愿单 + 统计）
       const tabs = UI.el('div', { class: 'cat-tabs', style: 'margin-bottom:14px;' });
       const TABS = ['全部'].concat(CATS).concat(['心愿单', '统计']);
@@ -31,14 +43,17 @@ window.BjdView = {
       } else if (_filter === '统计') {
         renderCatStats(wrap, all);
       } else {
-        const dolls = all.slice()
+        const dollsBase = all.slice()
           .filter((d) => _filter === '全部' || (d.category || '娃头') === _filter)
-          .filter((d) => _bjdStatusFilter === '全部' || (d.status || '未收到') === _bjdStatusFilter)
-          .sort((a, b) => (b.acquired || '').localeCompare(a.acquired || '') || a.name.localeCompare(b.name));
+          .filter((d) => _bjdStatusFilter === '全部' || (d.status || '未收到') === _bjdStatusFilter);
+
+        // 搜索框
+        const searchWrap = bjdSearchBox();
+        wrap.appendChild(searchWrap);
 
         // 状态筛选（小按钮）
         const statusTabs = UI.el('div', { class: 'status-tabs', style: 'margin-bottom:14px;' });
-        ['全部', '已收到', '未收到', '定金中'].forEach((st) => {
+        ['全部', '已收到', '未收到', '定金中', '已售出'].forEach((st) => {
           statusTabs.appendChild(UI.el('button', {
             class: 'status-tab' + (_bjdStatusFilter === st ? ' active' : ''),
             onclick: () => { _bjdStatusFilter = st; window.rerenderCurrent(); }
@@ -47,21 +62,34 @@ window.BjdView = {
         wrap.appendChild(statusTabs);
 
         // 统计（按当前筛选）
-        const total = dolls.reduce((s, d) => s + (parseFloat(d.price) || 0), 0);
-        wrap.appendChild(UI.el('div', { class: 'stat-row', style: 'margin-bottom:14px;' }, [
-          B_statBox(dolls.length + ' 件', _filter === '全部' ? '全部收藏' : _filter),
-          B_statBox('¥' + total.toLocaleString('zh-CN', { maximumFractionDigits: 0 }), '总身价')
-        ]));
+        const statRow = UI.el('div', { class: 'stat-row', style: 'margin-bottom:14px;' });
+        wrap.appendChild(statRow);
 
         wrap.appendChild(UI.el('button', { class: 'btn btn-primary btn-block', style: 'margin-bottom:14px;', onclick: () => dollForm(null, _filter === '全部' ? null : _filter) }, [svg('add'), '添加' + (_filter === '全部' ? '娃娃' : _filter)]));
 
-        if (dolls.length) {
-          const grid = UI.el('div', { class: 'bjd-grid' });
-          dolls.forEach((d) => grid.appendChild(dollCard(d)));
-          wrap.appendChild(grid);
-        } else {
-          wrap.appendChild(UI.el('div', { class: 'empty' }, [UI.el('div', { class: 'em-ico', html: svg('bjd') }), UI.el('div', { style: 'margin-top:8px;' }, '这个分类下还没有记录，点上面按钮添加吧 💕')]));
+        const grid = UI.el('div', { class: 'bjd-grid' });
+        wrap.appendChild(grid);
+
+        function renderGrid() {
+          const dolls = dollsBase.filter((d) => bjdMatch(d, _bjdSearch));
+          const isSoldFilter = _bjdStatusFilter === '已售出';
+          const total = dolls.reduce((s, d) => s + parseFloat(isSoldFilter ? (d.soldPrice || 0) : (d.price || 0)), 0);
+          statRow.innerHTML = '';
+          statRow.appendChild(B_statBox(dolls.length + ' 件', _filter === '全部' ? '全部收藏' : _filter));
+          statRow.appendChild(B_statBox('¥' + total.toLocaleString('zh-CN', { maximumFractionDigits: 0 }), isSoldFilter ? '售出总额' : '总身价'));
+          grid.innerHTML = '';
+          if (dolls.length) {
+            dolls.forEach((d) => grid.appendChild(dollCard(d, grid)));
+          } else {
+            grid.appendChild(UI.el('div', { class: 'empty' }, [UI.el('div', { class: 'em-ico', html: svg('bjd') }), UI.el('div', { style: 'margin-top:8px;' }, '没有匹配的娃娃，换个关键词试试 💕')]));
+          }
+          CardActions.setItems(dolls);
+          CardActions.refreshBar();
         }
+        renderGrid();
+
+        const searchInput = searchWrap.querySelector('#bjd-search');
+        if (searchInput) searchInput.addEventListener('input', () => { _bjdSearch = searchInput.value.trim(); renderGrid(); });
       }
       root.appendChild(wrap);
 
@@ -200,6 +228,7 @@ const CATS = ['娃头', '假发', '娃体', '娃衣', '其他'];
 const PHYSICAL_CATS = ['娃头', '假发', '娃体']; // 仅这些分类显示 肤色/头围/脖围/性别
 let _filter = '全部';
 let _bjdStatusFilter = '全部';
+let _bjdSearch = '';
 let _wishToRemoveOnSave = null;
 
 let _urls = [];
@@ -207,12 +236,12 @@ function revokeAll() { _urls.forEach((u) => URL.revokeObjectURL(u)); _urls = [];
 window.__bjdRevoke = revokeAll;
 function thumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _urls.push(u); cb(u); } }); }
 
-function dollCard(d) {
+function dollCard(d, grid) {
   const card = UI.el('div', { class: 'bjd-card' });
   const thumb = UI.el('div', { class: 'thumb', html: svg('bjd') });
   if (d.photos && d.photos.length) thumbURL(d.photos[0], (u) => { thumb.innerHTML = ''; const img = UI.el('img', { src: u, alt: d.name }); thumb.appendChild(img); });
   card.appendChild(thumb);
-  const statusColor = { '已收到': '#6BCB9C', '定金中': '#FFC46B', '未收到': '#B0B7C3' }[d.status || '未收到'];
+  const statusColor = { '已收到': '#6BCB9C', '定金中': '#FFC46B', '未收到': '#B0B7C3', '已售出': '#9AA6FF' }[d.status || '未收到'];
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [
       d.name || '未命名',
@@ -225,8 +254,30 @@ function dollCard(d) {
       UI.el('div', {}, '价格：' + (d.price ? '¥' + d.price : '—'))
     ])
   ]));
-  card.addEventListener('click', () => dollDetail(d));
+  card.appendChild(UI.el('div', { class: 'acts' }, [
+    UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: (e) => { e.stopPropagation(); dollForm(d); } }),
+    UI.el('button', { class: 'icon-btn danger', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delDoll(d); } })
+  ]));
+  if (CardActions.isSelected(d.id)) card.classList.add('selected');
+  CardActions.attach(card, d, { gridEl: grid, onTap: () => dollDetail(d) });
   return card;
+}
+
+function bjdMatch(d, q) {
+  if (!q) return true;
+  q = String(q).toLowerCase();
+  const hay = [d.name, d.company, d.category, d.skin, d.size, d.note, d.status, d.gender]
+    .filter(Boolean).join(' ').toLowerCase();
+  return hay.indexOf(q) >= 0;
+}
+
+function bjdSearchBox() {
+  const box = UI.el('div', { class: 'search-box', style: 'margin-bottom:14px;' });
+  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'bjd-search', placeholder: '搜索名字 / 娃社 / 娃设…', value: _bjdSearch });
+  box.appendChild(UI.el('span', { class: 'search-ico', html: svg('search') }));
+  box.appendChild(input);
+  if (_bjdSearch) box.appendChild(UI.el('button', { class: 'search-clear', html: svg('close'), onclick: () => { _bjdSearch = ''; window.rerenderCurrent(); } }));
+  return box;
 }
 
 function dollDetail(d) {
@@ -248,7 +299,7 @@ function dollDetail(d) {
   const info = [
     ['名字', d.name], ['分类', d.category || '娃头'], ['状态', statusText], ['娃社', d.company], ['尺寸', d.size], ['肤色', d.skin],
     ['头围', d.headCirc ? d.headCirc + ' cm' : ''], ['脖围', d.neckCirc ? d.neckCirc + ' cm' : ''],
-    ['价格', d.price ? '¥' + d.price : ''], ['性别', d.gender], ['入手日期', d.acquired], ['备注', d.note]
+    ['价格', d.price ? '¥' + d.price : ''], ['售出金额', d.soldPrice ? '¥' + d.soldPrice : ''], ['性别', d.gender], ['入手日期', d.acquired], ['备注', d.note]
   ];
   info.forEach(([k, v]) => {
     if (!v) return;
@@ -344,9 +395,13 @@ function dollForm(existing, defaultCat, prefill) {
       B_field('状态', UI.el('select', { id: 'd-status' }, [
         UI.el('option', { value: '未收到', selected: (init.status || '未收到') === '未收到' ? '' : null }, '未收到'),
         UI.el('option', { value: '定金中', selected: (init.status || '未收到') === '定金中' ? '' : null }, '定金中'),
-        UI.el('option', { value: '已收到', selected: (init.status || '未收到') === '已收到' ? '' : null }, '已收到')
+        UI.el('option', { value: '已收到', selected: (init.status || '未收到') === '已收到' ? '' : null }, '已收到'),
+        UI.el('option', { value: '已售出', selected: (init.status || '未收到') === '已售出' ? '' : null }, '已售出')
       ])),
       B_field('入手日期', UI.el('input', { type: 'date', id: 'd-acquired', value: init.acquired || '' }))
+    ]),
+    UI.el('div', { id: 'd-sold-wrap', style: 'display:none;' }, [
+      B_field('售出金额 (¥)', UI.el('input', { type: 'number', id: 'd-soldprice', min: '0', step: '1', value: init.soldPrice || '', placeholder: '选填' }))
     ]),
     B_field('备注', UI.el('textarea', { id: 'd-note', rows: '2', placeholder: '可选' }, init.note || '')),
     UI.el('div', { class: 'field' }, [UI.el('label', {}, '照片'), photoBox])
