@@ -86,7 +86,7 @@ window.GuziView = {
   }
 };
 
-const GUZI_TYPES = ['吧唧', '亚克力立牌', '色纸', '挂件', '手办', '其他'];
+const GUZI_TYPES = ['吧唧', '亚克力', '色纸', '挂件', '手办', '毛绒', '其他'];
 let _guziFilter = '全部';
 let _guziStatusFilter = '全部';
 let _guziSearch = '';
