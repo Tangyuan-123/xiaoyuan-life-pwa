@@ -299,6 +299,11 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 /* 分类徽标 */
 .badge.cat { margin-left: 8px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #EDE4FF; color: #7A4DD6; font-weight: 700; }
 
+/* 卡片顶部小圆点（分类 / 状态） */
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 9px; display: inline-block; }
+.bjd-card .info .nm { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bjd-card .info .nm > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 角色快速选择 chips（谷子助手表单） */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--border); background: var(--surface); color: var(--text-soft); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
@@ -337,13 +342,19 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .stat-box .l { font-size: 12.5px; color: var(--text-soft); margin-top: 2px; }
 
 .home-photo-box { min-height: 90px; }
-.home-photo-strip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; align-items: center; }
-.home-photo-strip::-webkit-scrollbar { display: none; }
+.home-photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.home-photo-cell {
+  position: relative; width: 100%; aspect-ratio: 1/1; border-radius: 14px; overflow: hidden;
+  background: var(--primary-soft); display: grid; place-items: center;
+}
+.home-photo-cell img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.home-photo-add {
+  border: 1.5px dashed var(--primary); color: var(--primary); background: var(--surface-2);
+  cursor: pointer; transition: background .15s;
+}
+.home-photo-add:active { background: var(--primary-soft); }
+.home-photo-add svg { width: 26px; height: 26px; }
 .home-photo-empty { font-size: 12.5px; padding: 10px 0; }
-.home-photo-item { flex: 0 0 64px; width: 64px; height: 64px; border-radius: 14px; overflow: hidden; position: relative; background: var(--primary-soft); }
-.home-photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.home-photo-del { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; display: grid; place-items: center; padding: 0; }
-.home-photo-del svg { width: 12px; height: 12px; }
 
 .toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(20px);

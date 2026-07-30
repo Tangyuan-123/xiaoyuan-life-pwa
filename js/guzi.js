@@ -103,9 +103,9 @@ function guziCard(g, grid) {
   const recvColor = (g.received === '已到手') ? '#6BCB9C' : (g.received === '已售出') ? '#9AA6FF' : '#B0B7C3';
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [
-      g.name || '未命名',
-      UI.el('span', { class: 'badge cat' }, (g.character || '未分类')),
-      UI.el('span', { style: 'margin-left:6px;font-size:11px;padding:2px 8px;border-radius:999px;background:' + recvColor + ';color:#fff;font-weight:700;' }, g.received || '未到手')
+      UI.el('span', {}, g.name || '未命名'),
+      UI.el('span', { class: 'dot', title: g.character || '未分类', style: 'background:' + recvColor + ';' }),
+      UI.el('span', { class: 'dot', title: g.received || '未到手', style: 'background:' + recvColor + ';' })
     ]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '种类：' + (g.type || '—')),
@@ -132,7 +132,7 @@ function guziMatch(g, q) {
 
 function guziSearchBox() {
   const box = UI.el('div', { class: 'search-box', style: 'margin-bottom:14px;' });
-  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'guzi-search', placeholder: '搜索名字 / 角色 / 种类…', value: _guziSearch });
+  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'guzi-search', placeholder: '搜索名字', value: _guziSearch });
   box.appendChild(UI.el('span', { class: 'search-ico', html: svg('search') }));
   box.appendChild(input);
   if (_guziSearch) box.appendChild(UI.el('button', { class: 'search-clear', html: svg('close'), onclick: () => { _guziSearch = ''; window.rerenderCurrent(); } }));
@@ -236,7 +236,10 @@ function guziForm(existing) {
       return wrap;
     })()),
     UI.el('div', { class: 'row' }, [
-      guziField('种类', UI.el('select', { id: 'g-type' }, GUZI_TYPES.map((t) => UI.el('option', { value: t, selected: (init.type || '吧唧') === t ? '' : null }, t)))),
+      UI.el('div', {}, [
+        guziField('种类', UI.el('input', { type: 'text', id: 'g-type', list: 'guzi-type-list', value: init.type || '', placeholder: '选择或填写' })),
+        UI.el('datalist', { id: 'guzi-type-list' }, GUZI_TYPES.map((t) => UI.el('option', { value: t }, t)))
+      ]),
       guziField('数量', UI.el('input', { type: 'number', id: 'g-qty', min: '1', step: '1', value: init.qty || '1', placeholder: '默认 1' }))
     ]),
     guziField('价格 (¥)', UI.el('input', { type: 'number', id: 'g-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' })),

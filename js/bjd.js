@@ -166,9 +166,10 @@ function wishCard(w) {
     ])
   ]));
   card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'btn btn-sm', onclick: () => moveWishToDoll(w) }, '加入收藏'),
-    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delWish(w); } })
+    UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: (e) => { e.stopPropagation(); wishForm(w); } }),
+    UI.el('button', { class: 'icon-btn danger', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); delWish(w); } })
   ]));
+  card.addEventListener('click', () => wishForm(w));
   return card;
 }
 
@@ -202,30 +203,40 @@ function wishForm(existing) {
     ]),
     B_field('备注', UI.el('textarea', { id: 'w-note', rows: '2', placeholder: '可选' }, existing ? (existing.note || '') : ''))
   ]);
+  const actions = [
+    { text: '取消', kind: 'btn-ghost' }
+  ];
+  if (isEdit) {
+    actions.push(
+      { text: '删除', kind: 'btn-danger', onClick: (c) => { c(); delWish(existing); } },
+      { text: '加入收藏', kind: 'btn', onClick: (c) => { c(); moveWishToDoll(existing); } }
+    );
+  }
+  actions.push({ text: isEdit ? '保存' : '添加', kind: 'btn-primary', onClick: (c) => {
+    const name = document.getElementById('w-name').value.trim();
+    if (!name) { UI.toast('请填写名字'); return; }
+    const obj = {
+      name,
+      category: document.getElementById('w-cat').value,
+      company: document.getElementById('w-company').value.trim(),
+      size: document.getElementById('w-size').value.trim(),
+      price: document.getElementById('w-price').value || '',
+      note: document.getElementById('w-note').value.trim()
+    };
+    if (isEdit) Store.update('wishes', existing.id, obj); else Store.add('wishes', obj);
+    UI.toast('已保存 💕'); c(); window.rerenderCurrent();
+  } });
   UI.openModal({
     title: isEdit ? '编辑心愿' : '添加心愿', body,
-    actions: [
-      { text: '取消', kind: 'btn-ghost' },
-      { text: isEdit ? '保存' : '添加', kind: 'btn-primary', onClick: (c) => {
-        const name = document.getElementById('w-name').value.trim();
-        if (!name) { UI.toast('请填写名字'); return; }
-        const obj = {
-          name,
-          category: document.getElementById('w-cat').value,
-          company: document.getElementById('w-company').value.trim(),
-          size: document.getElementById('w-size').value.trim(),
-          price: document.getElementById('w-price').value || '',
-          note: document.getElementById('w-note').value.trim()
-        };
-        if (isEdit) Store.update('wishes', existing.id, obj); else Store.add('wishes', obj);
-        UI.toast('已保存 💕'); c(); window.rerenderCurrent();
-      } }
-    ]
+    actions: actions
   });
 }
 
 const CATS = ['娃头', '假发', '娃体', '娃衣', '其他'];
-const PHYSICAL_CATS = ['娃头', '假发', '娃体']; // 仅这些分类显示 肤色/头围/脖围/性别
+const BJD_CAT_COLORS = { '娃头': '#FF6B9D', '假发': '#7A4DD6', '娃体': '#3DB2FF', '娃衣': '#FFB14D', '其他': '#6BCB9C' };
+const PHYSICAL_CATS = ['娃头', '假发', '娃体']; // 仅这些分类显示 头围/脖围/性别
+const SKIN_CATS = ['娃头', '娃体'];            // 仅这些分类显示 肤色
+const BJD_SKINS = ['粉', '普', '烧'];
 let _filter = '全部';
 let _bjdStatusFilter = '全部';
 let _bjdSearch = '';
@@ -244,9 +255,9 @@ function dollCard(d, grid) {
   const statusColor = { '已收到': '#6BCB9C', '定金中': '#FFC46B', '未收到': '#B0B7C3', '已售出': '#9AA6FF' }[d.status || '未收到'];
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [
-      d.name || '未命名',
-      UI.el('span', { class: 'badge cat' }, (d.category || '娃头')),
-      d.status ? UI.el('span', { style: 'margin-left:6px;font-size:11px;padding:2px 8px;border-radius:999px;background:' + statusColor + ';color:#fff;font-weight:700;' }, d.status) : null
+      UI.el('span', {}, d.name || '未命名'),
+      UI.el('span', { class: 'dot', title: d.category || '娃头', style: 'background:' + (BJD_CAT_COLORS[d.category] || '#B0B7C3') + ';' }),
+      UI.el('span', { class: 'dot', title: d.status || '未收到', style: 'background:' + statusColor + ';' })
     ]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '娃社：' + (d.company || '—')),
@@ -273,7 +284,7 @@ function bjdMatch(d, q) {
 
 function bjdSearchBox() {
   const box = UI.el('div', { class: 'search-box', style: 'margin-bottom:14px;' });
-  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'bjd-search', placeholder: '搜索名字 / 娃社 / 娃设…', value: _bjdSearch });
+  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'bjd-search', placeholder: '搜索名字', value: _bjdSearch });
   box.appendChild(UI.el('span', { class: 'search-ico', html: svg('search') }));
   box.appendChild(input);
   if (_bjdSearch) box.appendChild(UI.el('button', { class: 'search-clear', html: svg('close'), onclick: () => { _bjdSearch = ''; window.rerenderCurrent(); } }));
@@ -327,6 +338,7 @@ function dollForm(existing, defaultCat, prefill) {
   const isEdit = !!existing;
   const init = prefill || (existing || {});
   const initCat = existing ? existing.category : (defaultCat || (prefill && prefill.category) || '娃头');
+  const initSkin = existing ? (existing.skin || '') : (SKIN_CATS.includes(initCat) ? '白' : '');
   let localPhotos = existing && existing.photos ? existing.photos.slice() : [];
 
   const photoBox = UI.el('div', {});
@@ -377,9 +389,13 @@ function dollForm(existing, defaultCat, prefill) {
       B_field('尺寸', UI.el('input', { type: 'text', id: 'd-size', value: init.size || '', placeholder: '如 1/4 / 60cm' }))
     ]),
     B_field('价格 (¥)', UI.el('input', { type: 'number', id: 'd-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' })),
+    // 肤色：仅 娃头/娃体 显示
+    UI.el('div', { id: 'd-skin-wrap' }, [
+      B_field('肤色', UI.el('input', { type: 'text', id: 'd-skin', list: 'bjd-skin-list', value: initSkin, placeholder: '选择或填写' })),
+      UI.el('datalist', { id: 'bjd-skin-list' }, BJD_SKINS.map((s) => UI.el('option', { value: s }, s)))
+    ]),
     // 身体属性：仅 娃头/假发/娃体 显示，娃衣/其他 隐藏
     UI.el('div', { id: 'd-physical' }, [
-      B_field('肤色', UI.el('input', { type: 'text', id: 'd-skin', value: init.skin || '', placeholder: '如 粉白 / 小麦' })),
       UI.el('div', { class: 'row' }, [
         B_field('头围 (cm)', UI.el('input', { type: 'text', id: 'd-headcirc', inputmode: 'text', value: init.headCirc || '', placeholder: '如 22-23（弹力发网可填范围）' })),
         B_field('脖围 (cm)', UI.el('input', { type: 'text', id: 'd-neckcirc', inputmode: 'text', value: init.neckCirc || '', placeholder: '如 12-13' }))
@@ -400,7 +416,7 @@ function dollForm(existing, defaultCat, prefill) {
       ])),
       B_field('入手日期', UI.el('input', { type: 'date', id: 'd-acquired', value: init.acquired || '' }))
     ]),
-    UI.el('div', { id: 'd-sold-wrap', style: 'display:none;' }, [
+    UI.el('div', { id: 'd-sold-wrap', style: 'display:' + ((init.status === '已售出') ? '' : 'none') + ';' }, [
       B_field('售出金额 (¥)', UI.el('input', { type: 'number', id: 'd-soldprice', min: '0', step: '1', value: init.soldPrice || '', placeholder: '选填' }))
     ]),
     B_field('备注', UI.el('textarea', { id: 'd-note', rows: '2', placeholder: '可选' }, init.note || '')),
@@ -410,9 +426,22 @@ function dollForm(existing, defaultCat, prefill) {
   // 根据分类切换身体属性字段显隐
   const catSel = body.querySelector('#d-cat');
   const phys = body.querySelector('#d-physical');
-  function togglePhys() { phys.style.display = PHYSICAL_CATS.includes(catSel.value) ? '' : 'none'; }
-  catSel.addEventListener('change', togglePhys);
-  togglePhys();
+  const skinWrap = body.querySelector('#d-skin-wrap');
+  const dSkin = body.querySelector('#d-skin');
+  function toggleCatFields() {
+    const cat = catSel.value;
+    const showSkin = SKIN_CATS.includes(cat);
+    skinWrap.style.display = showSkin ? '' : 'none';
+    if (showSkin && !dSkin.value.trim()) dSkin.value = '白';
+    phys.style.display = PHYSICAL_CATS.includes(cat) ? '' : 'none';
+  }
+  catSel.addEventListener('change', toggleCatFields);
+  toggleCatFields();
+
+  // 状态为「已售出」时显示售出金额
+  const dStatus = body.querySelector('#d-status');
+  const dSoldWrap = body.querySelector('#d-sold-wrap');
+  if (dStatus && dSoldWrap) dStatus.addEventListener('change', () => { dSoldWrap.style.display = (dStatus.value === '已售出') ? '' : 'none'; });
 
   UI.openModal({
     title: isEdit ? '编辑娃娃' : '添加娃娃', body,

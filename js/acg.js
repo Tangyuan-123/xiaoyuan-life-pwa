@@ -25,7 +25,7 @@ window.AcgView = {
         const isWish = cat === '心愿单';
         const count = cat === '全部' ? all.length
           : isWish ? wishes.length
-          : all.filter((d) => (d.category || '娃脸壳') === cat).length;
+          : all.filter((d) => (d.category || '脸壳') === cat).length;
         let label;
         if (isWish) label = [UI.el('span', { html: svg('heart'), style: 'display:inline-flex;vertical-align:-3px;margin-right:3px;' }), '心愿单' + (count ? ' ' + count : '')];
         else label = cat + (count ? ' ' + count : '');
@@ -40,7 +40,7 @@ window.AcgView = {
         acgRenderWishlist(wrap, wishes);
       } else {
         const itemsBase = all.slice()
-          .filter((d) => _acgFilter === '全部' || (d.category || '娃脸壳') === _acgFilter)
+          .filter((d) => _acgFilter === '全部' || (d.category || '脸壳') === _acgFilter)
           .filter((d) => _acgStatusFilter === '全部' || (d.received || '未收到') === _acgStatusFilter);
 
         // 搜索框
@@ -94,7 +94,9 @@ window.AcgView = {
 };
 
 const ACG_CATS = ['脸壳', '娃体', '头壳', '整体', '娃衣', '其他'];
-const ACG_SKINS = ['白皙', '普肌（粉肌）', '小麦', '蜜茶', '加深', '全素体（无妆）', '其他'];
+const ACG_CAT_COLORS = { '脸壳': '#FF6B9D', '娃体': '#3DB2FF', '头壳': '#7A4DD6', '整体': '#FFB14D', '娃衣': '#6BCB9C', '其他': '#B0B7C3' };
+const ACG_SKIN_CATS = ['脸壳', '娃体', '整体'];
+const ACG_SKINS = ['粉', '普', '烧'];
 let _acgFilter = '全部';
 let _acgStatusFilter = '全部';
 let _acgSearch = '';
@@ -112,9 +114,9 @@ function acgItemCard(d, grid) {
   const recvColor = { '已收到': '#6BCB9C', '定金中': '#FFC46B', '未收到': '#B0B7C3', '已售出': '#9AA6FF' }[d.received || '未收到'];
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [
-      d.name || '未命名',
-      UI.el('span', { class: 'badge cat' }, (d.category || '娃脸壳')),
-      UI.el('span', { style: 'margin-left:6px;font-size:11px;padding:2px 8px;border-radius:999px;background:' + recvColor + ';color:#fff;font-weight:700;' }, d.received || '未收到')
+      UI.el('span', {}, d.name || '未命名'),
+      UI.el('span', { class: 'dot', title: d.category || '脸壳', style: 'background:' + (ACG_CAT_COLORS[d.category] || '#B0B7C3') + ';' }),
+      UI.el('span', { class: 'dot', title: d.received || '未收到', style: 'background:' + recvColor + ';' })
     ]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '娃社：' + (d.company || '—')),
@@ -140,7 +142,7 @@ function acgMatch(d, q) {
 
 function acgSearchBox() {
   const box = UI.el('div', { class: 'search-box', style: 'margin-bottom:14px;' });
-  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'acg-search', placeholder: '搜索名字 / 娃社 / 角色名…', value: _acgSearch });
+  const input = UI.el('input', { type: 'search', class: 'search-input', id: 'acg-search', placeholder: '搜索名字', value: _acgSearch });
   box.appendChild(UI.el('span', { class: 'search-ico', html: svg('search') }));
   box.appendChild(input);
   if (_acgSearch) box.appendChild(UI.el('button', { class: 'search-clear', html: svg('close'), onclick: () => { _acgSearch = ''; window.rerenderCurrent(); } }));
@@ -162,7 +164,7 @@ function acgItemDetail(d) {
   }
   body.appendChild(UI.el('hr', { class: 'sep' }));
   const info = [
-    ['名字', d.name], ['分类', d.category || '娃脸壳'], ['是否已收到', d.received || '未收到'],
+    ['名字', d.name], ['分类', d.category || '脸壳'], ['是否已收到', d.received || '未收到'],
     ['娃社', d.company], ['肤色', d.skin], ['尺寸', d.size], ['价格', d.price ? '¥' + d.price : ''],
     ['售出金额', d.soldPrice ? '¥' + d.soldPrice : ''], ['入手日期', d.date], ['备注', d.note]
   ];
@@ -186,7 +188,8 @@ function acgItemDetail(d) {
 function acgItemForm(existing, defaultCat, prefill) {
   const isEdit = !!existing;
   const init = prefill || (existing || {});
-  const initCat = existing ? existing.category : (defaultCat || (prefill && prefill.category) || '娃脸壳');
+  const initCat = existing ? existing.category : (defaultCat || (prefill && prefill.category) || '脸壳');
+  const initSkin = existing ? (existing.skin || '') : (ACG_SKIN_CATS.includes(initCat) ? '白' : '');
   let localPhotos = existing && existing.photos ? existing.photos.slice() : [];
 
   const photoBox = UI.el('div', {});
@@ -236,7 +239,10 @@ function acgItemForm(existing, defaultCat, prefill) {
       acgField('尺寸', UI.el('input', { type: 'text', id: 'a-size', value: init.size || '', placeholder: '如 1/4 / 60cm' }))
     ]),
     UI.el('div', { class: 'row' }, [
-      acgField('肤色', UI.el('select', { id: 'a-skin' }, ACG_SKINS.map((s) => UI.el('option', { value: s, selected: (init.skin || '白皙') === s ? '' : null }, s)))),
+      UI.el('div', { id: 'a-skin-wrap' }, [
+        acgField('肤色', UI.el('input', { type: 'text', id: 'a-skin', list: 'acg-skin-list', value: initSkin, placeholder: '选择或填写' })),
+        UI.el('datalist', { id: 'acg-skin-list' }, ACG_SKINS.map((s) => UI.el('option', { value: s }, s)))
+      ]),
       acgField('价格 (¥)', UI.el('input', { type: 'number', id: 'a-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' }))
     ]),
     UI.el('div', { class: 'row' }, [
@@ -254,6 +260,18 @@ function acgItemForm(existing, defaultCat, prefill) {
     acgField('备注', UI.el('textarea', { id: 'a-note', rows: '2', placeholder: '可选' }, init.note || '')),
     UI.el('div', { class: 'field' }, [UI.el('label', {}, '添加照片'), photoBox])
   ]);
+
+  // 根据分类切换肤色字段显隐
+  const catSel = body.querySelector('#a-cat');
+  const skinWrap = body.querySelector('#a-skin-wrap');
+  const aSkin = body.querySelector('#a-skin');
+  function toggleSkin() {
+    const show = ACG_SKIN_CATS.includes(catSel.value);
+    skinWrap.style.display = show ? '' : 'none';
+    if (show && !aSkin.value.trim()) aSkin.value = '白';
+  }
+  catSel.addEventListener('change', toggleSkin);
+  toggleSkin();
 
   // 状态为「已售出」时显示售出金额
   const _recvSel = body.querySelector('#a-received');
@@ -326,7 +344,10 @@ function acgWishCard(w) {
   if (w.photos && w.photos.length) acgThumbURL(w.photos[0], (u) => { thumb.innerHTML = ''; const img = UI.el('img', { src: u, alt: w.name }); thumb.appendChild(img); });
   card.appendChild(thumb);
   card.appendChild(UI.el('div', { class: 'info' }, [
-    UI.el('div', { class: 'nm' }, [w.name || '未命名', UI.el('span', { class: 'badge cat' }, (w.category || '娃脸壳'))]),
+    UI.el('div', { class: 'nm' }, [
+      UI.el('span', {}, w.name || '未命名'),
+      UI.el('span', { class: 'dot', title: w.category || '脸壳', style: 'background:' + (ACG_CAT_COLORS[w.category] || '#B0B7C3') + ';' })
+    ]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '娃社：' + (w.company || '—')),
       UI.el('div', {}, '肤色：' + (w.skin || '—')),
@@ -334,8 +355,8 @@ function acgWishCard(w) {
     ])
   ]));
   card.appendChild(UI.el('div', { class: 'acts' }, [
-    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); acgMoveWishToItem(w); } }, '加入收藏'),
-    UI.el('button', { class: 'icon-btn', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); acgDelWish(w); } })
+    UI.el('button', { class: 'icon-btn', title: '编辑', html: svg('edit'), onclick: (e) => { e.stopPropagation(); acgWishForm(w); } }),
+    UI.el('button', { class: 'icon-btn danger', title: '删除', html: svg('trash'), onclick: (e) => { e.stopPropagation(); acgDelWish(w); } })
   ]));
   card.addEventListener('click', () => acgWishDetail(w));
   return card;
@@ -356,7 +377,7 @@ function acgWishDetail(w) {
   }
   body.appendChild(UI.el('hr', { class: 'sep' }));
   const info = [
-    ['名字', w.name], ['分类', w.category || '娃脸壳'], ['娃社', w.company], ['肤色', w.skin], ['尺寸', w.size],
+    ['名字', w.name], ['分类', w.category || '脸壳'], ['娃社', w.company], ['肤色', w.skin], ['尺寸', w.size],
     ['预估价格', w.price ? '¥' + w.price : ''], ['备注', w.note]
   ];
   info.forEach(([k, v]) => {
@@ -396,6 +417,8 @@ function acgDelWish(w) {
 function acgWishForm(existing) {
   const isEdit = !!existing;
   const init = existing || {};
+  const initCat = init.category || '脸壳';
+  const initSkin = existing ? (existing.skin || '') : (ACG_SKIN_CATS.includes(initCat) ? '白' : '');
   let localPhotos = existing && existing.photos ? existing.photos.slice() : [];
 
   const photoBox = UI.el('div', {});
@@ -438,46 +461,67 @@ function acgWishForm(existing) {
     acgField('名字', UI.el('input', { type: 'text', id: 'w-name', value: init.name || '', placeholder: '想要的娃' })),
     UI.el('div', { class: 'field' }, [
       UI.el('label', {}, '分类'),
-      UI.el('select', { id: 'w-cat' }, ACG_CATS.map((c) => UI.el('option', { value: c, selected: ((init.category || '娃脸壳') === c) ? '' : null }, c)))
+      UI.el('select', { id: 'w-cat' }, ACG_CATS.map((c) => UI.el('option', { value: c, selected: (initCat === c) ? '' : null }, c)))
     ]),
     UI.el('div', { class: 'row' }, [
       acgField('娃社', UI.el('input', { type: 'text', id: 'w-company', value: init.company || '', placeholder: '如 娃社名' })),
       acgField('尺寸', UI.el('input', { type: 'text', id: 'w-size', value: init.size || '', placeholder: '如 1/4 / 60cm' }))
     ]),
     UI.el('div', { class: 'row' }, [
-      acgField('肤色', UI.el('select', { id: 'w-skin' }, ACG_SKINS.map((s) => UI.el('option', { value: s, selected: (init.skin || '白皙') === s ? '' : null }, s)))),
+      UI.el('div', { id: 'w-skin-wrap' }, [
+        acgField('肤色', UI.el('input', { type: 'text', id: 'w-skin', list: 'acg-skin-list', value: initSkin, placeholder: '选择或填写' })),
+        UI.el('datalist', { id: 'acg-skin-list' }, ACG_SKINS.map((s) => UI.el('option', { value: s }, s)))
+      ]),
       acgField('预估价格 (¥)', UI.el('input', { type: 'number', id: 'w-price', min: '0', step: '1', value: init.price || '', placeholder: '选填' }))
     ]),
     acgField('备注', UI.el('textarea', { id: 'w-note', rows: '2', placeholder: '可选' }, init.note || '')),
     UI.el('div', { class: 'field' }, [UI.el('label', {}, '添加照片'), photoBox])
   ]);
+
+  // 根据分类切换肤色字段显隐
+  const wCatSel = body.querySelector('#w-cat');
+  const wSkinWrap = body.querySelector('#w-skin-wrap');
+  const wSkin = body.querySelector('#w-skin');
+  function toggleWSkin() {
+    const show = ACG_SKIN_CATS.includes(wCatSel.value);
+    wSkinWrap.style.display = show ? '' : 'none';
+    if (show && !wSkin.value.trim()) wSkin.value = '白';
+  }
+  wCatSel.addEventListener('change', toggleWSkin);
+  toggleWSkin();
+
+  const actions = [{ text: '取消', kind: 'btn-ghost' }];
+  if (isEdit) {
+    actions.push(
+      { text: '删除', kind: 'btn-danger', onClick: (c) => { c(); acgDelWish(existing); } },
+      { text: '加入收藏', kind: 'btn', onClick: (c) => { c(); acgMoveWishToItem(existing); } }
+    );
+  }
+  actions.push({ text: isEdit ? '保存' : '添加', kind: 'btn-primary', onClick: (c) => {
+    const name = document.getElementById('w-name').value.trim();
+    if (!name) { UI.toast('请填写名字'); return; }
+    const obj = {
+      name,
+      category: document.getElementById('w-cat').value,
+      company: document.getElementById('w-company').value.trim(),
+      skin: document.getElementById('w-skin').value,
+      size: document.getElementById('w-size').value.trim(),
+      price: document.getElementById('w-price').value || '',
+      note: document.getElementById('w-note').value.trim(),
+      photos: localPhotos.slice()
+    };
+    if (isEdit) {
+      const removed = (existing.photos || []).filter((p) => !localPhotos.includes(p));
+      removed.forEach((p) => DB.del(p));
+      Store.update('acgWishes', existing.id, obj);
+    } else {
+      Store.add('acgWishes', obj);
+    }
+    UI.toast('已保存 💕'); c(); window.rerenderCurrent();
+  } });
   UI.openModal({
     title: isEdit ? '编辑心愿' : '添加心愿', body,
-    actions: [
-      { text: '取消', kind: 'btn-ghost' },
-      { text: isEdit ? '保存' : '添加', kind: 'btn-primary', onClick: (c) => {
-        const name = document.getElementById('w-name').value.trim();
-        if (!name) { UI.toast('请填写名字'); return; }
-        const obj = {
-          name,
-          category: document.getElementById('w-cat').value,
-          company: document.getElementById('w-company').value.trim(),
-          skin: document.getElementById('w-skin').value,
-          size: document.getElementById('w-size').value.trim(),
-          price: document.getElementById('w-price').value || '',
-          note: document.getElementById('w-note').value.trim(),
-          photos: localPhotos.slice()
-        };
-        if (isEdit) {
-          const removed = (existing.photos || []).filter((p) => !localPhotos.includes(p));
-          removed.forEach((p) => DB.del(p));
-          Store.update('acgWishes', existing.id, obj);
-        } else {
-          Store.add('acgWishes', obj);
-        }
-        UI.toast('已保存 💕'); c(); window.rerenderCurrent();
-      } }
-    ]
+    actions: actions
   });
 }
 

@@ -94,28 +94,41 @@ function homeThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _homePhotoU
 
 function renderHomePhotos() {
   const box = UI.el('div', { class: 'stat-box home-photo-box', style: 'flex:1 1 100%;max-width:100%;' });
-  box.appendChild(UI.el('div', { class: 'l', style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;' }, [
-    UI.el('span', {}, '我喜欢的角色'),
-    UI.el('button', { class: 'btn btn-sm', onclick: (e) => { e.stopPropagation(); addHomePhoto(); } }, [svg('add'), '添加'])
-  ]));
-  const strip = UI.el('div', { class: 'home-photo-strip' });
+  box.appendChild(UI.el('div', { class: 'l', style: 'margin-bottom:8px;' }, '我喜欢的角色'));
+  const grid = UI.el('div', { class: 'home-photo-grid' });
   const photos = Store.getArr('homePhotos');
-  if (!photos.length) {
-    strip.appendChild(UI.el('div', { class: 'home-photo-empty muted' }, '还没有照片，点右上角添加喜欢的角色 💕'));
-  } else {
-    photos.forEach((p) => {
-      const wrap = UI.el('div', { class: 'home-photo-item' });
-      homeThumbURL(p.photoId, (u) => {
-        const img = UI.el('img', { src: u });
-        img.addEventListener('click', () => UI.photoViewer(photos.map((x) => x.photoId), p.photoId));
-        wrap.appendChild(img);
-      });
-      wrap.appendChild(UI.el('button', { class: 'home-photo-del', html: svg('close'), onclick: (e) => { e.stopPropagation(); delHomePhoto(p); } }));
-      strip.appendChild(wrap);
-    });
+  for (let i = 0; i < 2; i++) {
+    if (photos[i]) {
+      const p = photos[i];
+      const cell = UI.el('div', { class: 'home-photo-cell' });
+      homeThumbURL(p.photoId, (u) => { cell.appendChild(UI.el('img', { src: u })); });
+      cell.addEventListener('click', () => replaceHomePhoto(p));
+      grid.appendChild(cell);
+    } else {
+      const add = UI.el('div', { class: 'home-photo-cell home-photo-add', html: svg('add'), title: '添加照片' });
+      add.addEventListener('click', () => addHomePhoto());
+      grid.appendChild(add);
+    }
   }
-  box.appendChild(strip);
+  box.appendChild(grid);
   return box;
+}
+
+function replaceHomePhoto(p) {
+  const inp = UI.el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    try {
+      const newId = Store.uid();
+      const blob = await DB.fileToBlob(f, 1200, 0.85);
+      await DB.put(newId, blob);
+      DB.del(p.photoId);
+      Store.update('homePhotos', p.id, { photoId: newId });
+      UI.toast('照片已更换 💕'); window.rerenderCurrent();
+    } catch (e) { UI.toast('图片读取失败'); }
+  });
+  inp.click();
 }
 
 function addHomePhoto() {
