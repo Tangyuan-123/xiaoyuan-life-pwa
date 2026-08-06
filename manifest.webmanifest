@@ -1,14 +1,14 @@
 {
   "name": "小圆生活助手",
   "short_name": "小圆助手",
-  "description": "你的暖心生活小助手：减肥打卡、经期记录、BJD 娃娃收藏管理。",
+  "description": "你的粉色生活小助手：减肥打卡、经期记录、BJD 娃娃收藏管理。",
   "lang": "zh-CN",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FDF8F3",
-  "theme_color": "#B87D4B",
+  "background_color": "#FFF5F8",
+  "theme_color": "#FF6B9D",
   "categories": ["lifestyle", "health", "productivity"],
   "icons": [
     {
