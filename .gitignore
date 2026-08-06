@@ -1,3 +1,22 @@
 *.log
 .DS_Store
 node_modules/
+
+# Build artifacts / secrets (never commit)
+apk_request.json
+apk_build.js
+apk_build_v2.js
+apk_build_v3.js
+apk_output/
+apk_v2_output/
+apk_v3_output/
+apk.zip
+apk_v2.zip
+apk_v3.zip
+signing.keystore
+signing-key-info.txt
+push_via_api.js
+make_icon.py
+gen_icons.py
+gen_icons_from_user.py
+
