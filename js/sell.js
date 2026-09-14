@@ -40,14 +40,16 @@ window.SellView = {
         const totalCost = items.reduce((sum, s) => sum + (parseFloat(s.cost) || 0), 0);
         const totalPrice = items.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
         const profit = totalPrice - totalCost;
+        const soldQty = sold.reduce((n, s) => n + sellQtyOf(s), 0);
+        const shownQty = items.reduce((n, s) => n + sellQtyOf(s), 0);
 
         // 盈利横幅
         profitBanner.innerHTML = '';
-        profitBanner.appendChild(sellProfitBanner(sold.length, totalCost, totalPrice, profit));
+        profitBanner.appendChild(sellProfitBanner(soldQty, totalCost, totalPrice, profit));
 
         // 统计
         statRow.innerHTML = '';
-        statRow.appendChild(sellStatBox(items.length + ' 件', '当前显示'));
+        statRow.appendChild(sellStatBox(shownQty + ' 件', '当前显示'));
         statRow.appendChild(sellStatBox('¥' + Math.round(totalCost).toLocaleString('zh-CN'), '总成本'));
         statRow.appendChild(sellStatBox('¥' + Math.round(totalPrice).toLocaleString('zh-CN'), _sellStatus === '已售' ? '总收入' : '售价合计'));
         statRow.appendChild(sellStatBox('¥' + Math.round(profit).toLocaleString('zh-CN'), '盈利', true, profit >= 0));
@@ -74,6 +76,7 @@ let _sellUrls = [];
 function sellRevokeAll() { _sellUrls.forEach((u) => URL.revokeObjectURL(u)); _sellUrls = []; }
 window.__sellRevoke = sellRevokeAll;
 function sellThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _sellUrls.push(u); cb(u); } }); }
+function sellQtyOf(s) { const n = parseInt(s && s.qty, 10); return (n >= 1) ? n : 1; }
 
 function sellCard(s) {
   const card = UI.el('div', { class: 'bjd-card', style: 'cursor:pointer;' });
@@ -84,11 +87,14 @@ function sellCard(s) {
   const cm = (parseFloat(s.cost) || 0);
   const pm = (parseFloat(s.price) || 0);
   const profit = pm - cm;
+  const qty = sellQtyOf(s);
   const profitColor = profit >= 0 ? '#2fae6b' : '#e23b3b';
   const profitTxt = (profit >= 0 ? '+' : '') + '¥' + Math.round(profit).toLocaleString('zh-CN');
+  const qtyTag = qty > 1 ? UI.el('span', { class: 'qty-pill', title: '数量' }, '×' + qty + '件') : null;
   card.appendChild(UI.el('div', { class: 'info' }, [
     UI.el('div', { class: 'nm' }, [
       UI.el('span', {}, s.name || '未命名'),
+      qtyTag,
       UI.el('span', { class: 'dot', title: s.status || '在售', style: 'background:' + stColor + ';' })
     ]),
     UI.el('div', { class: 'meta' }, [
@@ -96,7 +102,7 @@ function sellCard(s) {
         UI.el('span', {}, '售价 ¥' + (s.price || '—')),
         UI.el('span', { style: 'color:' + profitColor + ';' }, '盈利 ' + profitTxt)
       ]),
-      UI.el('div', { class: 'muted', style: 'margin-top:2px;' }, '成本 ¥' + (s.cost || '—') + ' · ' + (s.status === '已售' ? '已售出' : (s.status || '在售')))
+      UI.el('div', { class: 'muted', style: 'margin-top:2px;' }, '成本 ¥' + (s.cost || '—') + ' · ' + (s.status === '已售' ? '已售出' : (s.status || '在售')) + (qty > 1 ? ' · ×' + qty + '件' : ''))
     ])
   ]));
   card.addEventListener('click', () => sellDetail(s));
@@ -136,6 +142,7 @@ function sellProfitBanner(soldCount, cost, price, profit) {
 
 function sellDetail(s) {
   const body = UI.el('div', {});
+  const qty = sellQtyOf(s);
   if (s.photos && s.photos.length) {
     const pgrid = UI.el('div', { class: 'photo-grid' });
     s.photos.forEach((pid) => sellThumbURL(pid, (u) => {
@@ -161,6 +168,7 @@ function sellDetail(s) {
           UI.el('div', { class: 'pb-value', style: 'color:' + pColor }, (profit >= 0 ? '+' : '') + '¥' + Math.round(profit).toLocaleString('zh-CN'))
         ]),
         UI.el('div', { class: 'pb-sub' }, [
+          UI.el('span', {}, ['数量 ', UI.el('b', {}, qty + ' 件')]),
           UI.el('span', {}, ['成本 ', UI.el('b', {}, '¥' + Math.round(cm).toLocaleString('zh-CN'))]),
           UI.el('span', {}, ['售价 ', UI.el('b', {}, '¥' + Math.round(pm).toLocaleString('zh-CN'))])
         ])
@@ -169,13 +177,18 @@ function sellDetail(s) {
   }
   const info = [
     ['商品名', s.name],
-    ['售价', s.price ? '¥' + s.price : '—'],
-    ['成本价', s.cost ? '¥' + s.cost : '—'],
+    ['数量', qty + ' 件'],
+    ['售价（合计）', s.price ? '¥' + s.price : '—'],
+    ['成本价（合计）', s.cost ? '¥' + s.cost : '—'],
     ['状态', s.status || '在售'],
     ['买家/渠道', s.buyer],
     ['售出日期', s.soldDate],
     ['备注', s.note]
   ];
+  if (qty > 1) {
+    if (cm) info.push(['单件成本', '¥' + (cm / qty).toFixed(2)]);
+    if (pm) info.push(['单件售价', '¥' + (pm / qty).toFixed(2)]);
+  }
   info.forEach(([k, v]) => {
     if (!v) return;
     body.appendChild(UI.el('div', { style: 'display:flex;gap:10px;padding:5px 0;' }, [
@@ -240,6 +253,7 @@ function sellForm(existing) {
       sellField('售价 (¥)', UI.el('input', { type: 'number', id: 'sl-price', min: '0', step: '1', value: init.price || '' })),
       sellField('成本价 (¥)', UI.el('input', { type: 'number', id: 'sl-cost', min: '0', step: '1', value: init.cost || '', placeholder: '算盈利' }))
     ]),
+    sellField('数量（一起卖几件）', UI.el('input', { type: 'number', id: 'sl-qty', min: '1', step: '1', value: (init.qty || 1) })),
     sellField('状态', UI.el('select', { id: 'sl-status' }, SELL_STATUS.map((st) =>
       UI.el('option', { value: st, selected: (init.status || '已售') === st ? '' : null }, st)))),
     UI.el('div', { id: 'sl-sold-wrap', style: 'display:' + ((init.status === '已售') ? '' : 'none') + ';' }, [
@@ -263,6 +277,7 @@ function sellForm(existing) {
         if (!name) { UI.toast('请填写商品名'); return; }
         const obj = {
           name,
+          qty: parseInt(document.getElementById('sl-qty').value, 10) || 1,
           price: document.getElementById('sl-price').value || '',
           cost: document.getElementById('sl-cost').value || '',
           status: document.getElementById('sl-status').value,
