@@ -357,6 +357,17 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 .stat-box .v { font-size: 20px; font-weight: 800; color: var(--primary-deep); line-height: 1.2; white-space: nowrap; }
 .stat-box .l { font-size: 12.5px; color: var(--text-soft); margin-top: 2px; }
 
+/* 成品售卖 · 盈利横幅（显眼） */
+.profit-banner { background: linear-gradient(135deg, #FFF1F6, #FFE3EE); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; box-shadow: var(--shadow-sm); }
+.profit-banner-inner { display: flex; flex-direction: column; gap: 8px; }
+.profit-banner .pb-main { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.profit-banner .pb-label { font-size: 13px; color: var(--text-soft); font-weight: 700; }
+.profit-banner .pb-value { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+.profit-banner .pb-sub { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--text-soft); }
+.profit-banner .pb-sub b { color: var(--text); font-weight: 700; }
+/* 弱化「在售」状态标签 */
+.status-tab.muted-tab { opacity: .65; }
+
 .home-photo-box { min-height: 90px; }
 .home-photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .home-photo-cell {
