@@ -135,6 +135,7 @@
     document.getElementById('page-title').textContent = (NAV.find((n) => n.key === name) || {}).label || '小圆生活助手';
     if (window.__bjdRevoke) window.__bjdRevoke();
     if (window.__homeRevoke) window.__homeRevoke();
+    if (window.__stockRevoke) window.__stockRevoke();
     if (UI.isMobile() && sidebarOpen) closeSidebar(false);
   }
 
