@@ -21,7 +21,7 @@ const Store = (function () {
     acg: [],               // 二次元娃：[{id, name, category(娃脸壳/娃体/头壳), company, size, price, received, photos:[imgId], note, date}]
     acgWishes: [],         // 二次元娃心愿单：[{id, name, category, company, size, price, note}]
     guzi: [],              // 谷子助手：[{id, name, character, type, price, received, photos:[imgId], note}]
-    stock: [],             // 囤货管理（GSC脸壳）：[{id, name, qty, cost, price, channel, date, status, note}]
+    stock: [],             // 囤货管理（GSC脸壳）：[{id, name, qty, cost, price, unit, channel, date, status, note, photos}]
     sell: [],              // 成品售卖：[{id, name, qty, cost, price, status, buyer, soldDate, note, photos}]
     homePhotos: []         // 首页展示照片：[{id, photoId}]
   };
