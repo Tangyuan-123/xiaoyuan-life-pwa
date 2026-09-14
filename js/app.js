@@ -109,6 +109,8 @@
     { key: 'bjd', label: 'BJD 娃娃', icon: 'bjd' },
     { key: 'acg', label: '二次元娃', icon: 'acg' },
     { key: 'guzi', label: '谷子助手', icon: 'guzi' },
+    { key: 'stock', label: '囤货管理', icon: 'stock' },
+    { key: 'sell', label: '成品售卖', icon: 'sell' },
     { key: 'settings', label: '设置', icon: 'settings' }
   ];
 
@@ -291,6 +293,8 @@
       if (window.BjdView) BjdView.register();
       if (window.AcgView) AcgView.register();
       if (window.GuziView) GuziView.register();
+      if (window.StockView) StockView.register();
+      if (window.SellView) SellView.register();
       if (window.HomeView) HomeView.register();
 
     window.addEventListener('hashchange', renderRoute);
