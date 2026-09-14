@@ -369,6 +369,12 @@ input, select, textarea { font-family: inherit; font-size: 15px; color: var(--te
 /* 弱化「在售」状态标签 */
 .status-tab.muted-tab { opacity: .65; }
 
+/* 囤货管理：排序选择器 */
+.sort-row { display: flex; align-items: center; gap: 10px; }
+.sort-label { font-size: 13px; color: var(--text-soft); font-weight: 600; flex: none; }
+.sort-select { flex: 1; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface-2); outline: none; transition: border-color .15s, box-shadow .15s; }
+.sort-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+
 .home-photo-box { min-height: 90px; }
 .home-photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .home-photo-cell {
