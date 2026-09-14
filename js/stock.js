@@ -15,6 +15,17 @@ window.StockView = {
       });
       wrap.appendChild(statusTabs);
 
+      // 排序（按购入日期，方便判断黄化程度）
+      const sortRow = UI.el('div', { class: 'sort-row', style: 'margin-bottom:14px;' }, [
+        UI.el('span', { class: 'sort-label' }, '排序'),
+        UI.el('select', { class: 'sort-select', onchange: (e) => { _stockSort = e.target.value; window.rerenderCurrent(); } }, [
+          ['date_asc', '最早购入（旧→新·黄化优先）'],
+          ['date_desc', '最近购入（新→旧）'],
+          ['added', '添加顺序']
+        ].map(([v, l]) => UI.el('option', { value: v, selected: _stockSort === v ? '' : null }, l)))
+      ]);
+      wrap.appendChild(sortRow);
+
       // 搜索
       const searchWrap = stockSearchBox();
       wrap.appendChild(searchWrap);
@@ -32,6 +43,9 @@ window.StockView = {
         const items = all
           .filter((s) => _stockStatus === '全部' || (s.status || '在库') === _stockStatus)
           .filter((s) => stockMatch(s, _stockSearch));
+        // 时间排序（缺日期的记录始终排在最后，避免干扰判断）
+        if (_stockSort === 'date_asc') items.sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+        else if (_stockSort === 'date_desc') items.sort((a, b) => (b.date || '9999').localeCompare(a.date || '9999'));
         const totalQty = items.reduce((sum, s) => sum + (parseInt(s.qty, 10) || 1), 0);
         // 数量与成本均为「总」数值，直接累加，不做 qty×cost 相乘
         const totalCost = items.reduce((sum, s) => sum + (parseFloat(s.cost) || 0), 0);
@@ -60,10 +74,18 @@ const STOCK_STATUS = ['在库', '已用', '已预定', '已出'];
 const STOCK_STATUS_COLOR = { '在库': '#6BCB9C', '已用': '#B0B7C3', '已预定': '#FFB36B', '已出': '#9AA6FF' };
 let _stockStatus = '全部';
 let _stockSearch = '';
+let _stockSort = 'date_asc'; // 默认按购入日期升序（最旧→最新），方便一眼看出黄化最久的库存
 let _stockUrls = [];
 function stockRevokeAll() { _stockUrls.forEach((u) => URL.revokeObjectURL(u)); _stockUrls = []; }
 window.__stockRevoke = stockRevokeAll;
 function stockThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _stockUrls.push(u); cb(u); } }); }
+// 取单价：手动填过就用手动值；否则按 总价÷数量 自动算（2 位小数）
+function stockUnitOf(s) {
+  if (s.unit != null && s.unit !== '' && !isNaN(parseFloat(s.unit))) return parseFloat(s.unit);
+  const c = parseFloat(s.cost) || 0;
+  const q = parseInt(s.qty, 10) || 1;
+  return q > 0 ? Math.round(c / q * 100) / 100 : 0;
+}
 
 function stockCard(s) {
   const card = UI.el('div', { class: 'bjd-card', style: 'cursor:pointer;' });
@@ -78,6 +100,7 @@ function stockCard(s) {
     ]),
     UI.el('div', { class: 'meta' }, [
       UI.el('div', {}, '数量：' + (s.qty || 1) + ' 颗'),
+      UI.el('div', {}, '单价：¥' + stockUnitOf(s).toLocaleString('zh-CN', { maximumFractionDigits: 2 })),
       UI.el('div', {}, '成本：' + (s.cost ? '¥' + s.cost : '—')),
       UI.el('div', {}, '售价：' + (s.price ? '¥' + s.price : '—')),
       s.channel ? UI.el('div', {}, '渠道：' + s.channel) : null
@@ -120,6 +143,7 @@ function stockDetail(s) {
   const info = [
     ['角色/款式', s.name],
     ['数量', (s.qty || 1) + ' 颗'],
+    ['单价', '¥' + stockUnitOf(s).toLocaleString('zh-CN', { maximumFractionDigits: 2 })],
     ['成本价', s.cost ? '¥' + s.cost : '—'],
     ['售价', s.price ? '¥' + s.price : '—'],
     ['购入渠道', s.channel],
@@ -191,17 +215,22 @@ function stockForm(existing) {
   }
   refreshStrip();
 
+  const qtyInput = UI.el('input', { type: 'number', id: 's-qty', min: '1', step: '1', value: init.qty || '1' });
+  const costInput = UI.el('input', { type: 'number', id: 's-cost', min: '0', step: '1', value: init.cost || '' });
+  const unitInput = UI.el('input', { type: 'number', id: 's-unit', min: '0', step: '0.01', value: (init.unit != null && init.unit !== '') ? init.unit : '', placeholder: '留空自动算' });
+
   const body = UI.el('div', {}, [
     stockField('角色/款式', UI.el('input', { type: 'text', id: 's-name', value: init.name || '', placeholder: '如 GSC 初音未来 脸壳' })),
     UI.el('div', { class: 'row' }, [
-      stockField('数量（颗）', UI.el('input', { type: 'number', id: 's-qty', min: '1', step: '1', value: init.qty || '1' })),
+      stockField('数量（颗）', qtyInput),
       stockField('状态', UI.el('select', { id: 's-status' }, STOCK_STATUS.map((st) =>
         UI.el('option', { value: st, selected: (init.status || '在库') === st ? '' : null }, st))))
     ]),
     UI.el('div', { class: 'row' }, [
-      stockField('成本 (¥，总)', UI.el('input', { type: 'number', id: 's-cost', min: '0', step: '1', value: init.cost || '' })),
+      stockField('成本 (¥，总)', costInput),
       stockField('售价 (¥)', UI.el('input', { type: 'number', id: 's-price', min: '0', step: '1', value: init.price || '' }))
     ]),
+    stockField('单价 (¥，留空 = 总价÷数量 自动算)', unitInput),
     UI.el('div', { class: 'row' }, [
       stockField('购入渠道', UI.el('input', { type: 'text', id: 's-channel', value: init.channel || '', placeholder: '如 淘宝 / 闲鱼' })),
       stockField('购入日期', UI.el('input', { type: 'date', id: 's-date', value: init.date || '' }))
@@ -209,6 +238,21 @@ function stockForm(existing) {
     stockField('备注', UI.el('textarea', { id: 's-note', rows: '2', placeholder: '可选' }, init.note || '')),
     UI.el('div', { class: 'field' }, [UI.el('label', {}, '添加照片'), photoBox])
   ]);
+
+  // 单价联动：手动填过就不自动覆盖；否则随 成本/数量 实时算 总价÷数量
+  let unitTouched = !!(init.unit != null && init.unit !== '');
+  unitInput.addEventListener('input', () => { unitTouched = true; });
+  function recalcUnit() {
+    if (unitTouched) return;
+    const c = parseFloat(costInput.value);
+    const q = parseInt(qtyInput.value, 10);
+    if (!isNaN(c) && !isNaN(q) && q > 0) unitInput.value = (Math.round(c / q * 100) / 100).toString();
+    else unitInput.value = '';
+  }
+  costInput.addEventListener('input', recalcUnit);
+  qtyInput.addEventListener('input', recalcUnit);
+  recalcUnit();
+
   UI.openModal({
     title: isEdit ? '编辑囤货' : '添加囤货', body,
     actions: [
@@ -222,6 +266,12 @@ function stockForm(existing) {
           status: document.getElementById('s-status').value,
           cost: document.getElementById('s-cost').value || '',
           price: document.getElementById('s-price').value || '',
+          unit: (function () {
+            const u = parseFloat(unitInput.value);
+            if (!isNaN(u)) return u;
+            const c = parseFloat(costInput.value), q = parseInt(qtyInput.value, 10);
+            return (!isNaN(c) && !isNaN(q) && q > 0) ? Math.round(c / q * 100) / 100 : '';
+          })(),
           channel: document.getElementById('s-channel').value.trim(),
           date: document.getElementById('s-date').value,
           note: document.getElementById('s-note').value.trim(),
