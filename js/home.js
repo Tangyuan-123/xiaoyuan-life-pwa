@@ -56,7 +56,7 @@ window.HomeView = {
         { key: 'acg', icon: 'acg', color: 'linear-gradient(135deg,#FFC36B,#FF8A5B)', title: '二次元娃', desc: '娃脸壳·娃体·头壳', stat: acgItems.length ? ('已收 ' + acgRecv + ' / 共 ' + acgItems.length) : '添加你的娃' },
         { key: 'guzi', icon: 'guzi', color: 'linear-gradient(135deg,#5BD0C0,#3DB2FF)', title: '谷子助手', desc: '按角色收藏谷子', stat: guziItems.length ? ('到手 ' + guziRecv + ' / 共 ' + guziItems.length) : '收藏第一件谷子' },
         { key: 'stock', icon: 'stock', color: 'linear-gradient(135deg,#7AD0C0,#3DB2FF)', title: '囤货管理', desc: 'GSC脸壳库存盘点', stat: stockItems.length ? ('囤 ' + stockItems.length + ' 款') : '记录第一笔囤货' },
-        { key: 'sell', icon: 'sell', color: 'linear-gradient(135deg,#FFB36B,#FF8A5B)', title: '成品售卖', desc: '记录成本售价·算盈利', stat: sellItems.length ? ('已售 ' + sellItems.filter((d) => d.status === '已售').length + ' / 共 ' + sellItems.length + ' 件') : '记第一笔售出' }
+        { key: 'sell', icon: 'sell', color: 'linear-gradient(135deg,#FFB36B,#FF8A5B)', title: '成品售卖', desc: '记录成本售价·算盈利', stat: sellItems.length ? ('已售 ' + sumQty(sellItems.filter((d) => d.status === '已售')) + ' / 共 ' + sumQty(sellItems) + ' 件') : '记第一笔售出' }
       ];
       defs.forEach((d) => {
         const card = UI.el('button', {
@@ -85,6 +85,7 @@ window.HomeView = {
   }
 };
 window.__homeRevoke = revokeHomePhotos;
+function sumQty(arr) { return (arr || []).reduce((n, d) => n + ((parseInt(d.qty, 10) >= 1) ? parseInt(d.qty, 10) : 1), 0); }
 
 function statBox(v, l) {
   return UI.el('div', { class: 'stat-box' }, [
