@@ -136,6 +136,7 @@
     if (window.__bjdRevoke) window.__bjdRevoke();
     if (window.__homeRevoke) window.__homeRevoke();
     if (window.__stockRevoke) window.__stockRevoke();
+    if (window.__sellRevoke) window.__sellRevoke();
     if (UI.isMobile() && sidebarOpen) closeSidebar(false);
   }
 
