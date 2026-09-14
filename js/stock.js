@@ -59,10 +59,15 @@ const STOCK_STATUS = ['在库', '已用', '已预定', '已出'];
 const STOCK_STATUS_COLOR = { '在库': '#6BCB9C', '已用': '#B0B7C3', '已预定': '#FFB36B', '已出': '#9AA6FF' };
 let _stockStatus = '全部';
 let _stockSearch = '';
+let _stockUrls = [];
+function stockRevokeAll() { _stockUrls.forEach((u) => URL.revokeObjectURL(u)); _stockUrls = []; }
+window.__stockRevoke = stockRevokeAll;
+function stockThumbURL(id, cb) { DB.getURL(id).then((u) => { if (u) { _stockUrls.push(u); cb(u); } }); }
 
 function stockCard(s) {
   const card = UI.el('div', { class: 'bjd-card', style: 'cursor:pointer;' });
   const thumb = UI.el('div', { class: 'thumb', html: svg('stock') });
+  if (s.photos && s.photos.length) stockThumbURL(s.photos[0], (u) => { thumb.innerHTML = ''; thumb.appendChild(UI.el('img', { src: u, alt: s.name })); });
   card.appendChild(thumb);
   const stColor = STOCK_STATUS_COLOR[s.status] || STOCK_STATUS_COLOR['在库'];
   card.appendChild(UI.el('div', { class: 'info' }, [
@@ -99,6 +104,17 @@ function stockSearchBox() {
 
 function stockDetail(s) {
   const body = UI.el('div', {});
+  if (s.photos && s.photos.length) {
+    const pgrid = UI.el('div', { class: 'photo-grid' });
+    s.photos.forEach((pid) => stockThumbURL(pid, (u) => {
+      const ph = UI.el('div', { class: 'pg-item' }, UI.el('img', { src: u, alt: s.name }));
+      ph.addEventListener('click', () => UI.photoViewer(s.photos, pid));
+      pgrid.appendChild(ph);
+    }));
+    body.appendChild(pgrid);
+  } else {
+    body.appendChild(UI.el('div', { class: 'muted', style: 'padding:8px 0;' }, '暂无照片'));
+  }
   body.appendChild(UI.el('hr', { class: 'sep' }));
   const info = [
     ['角色/款式', s.name],
@@ -136,6 +152,44 @@ function stockDetail(s) {
 function stockForm(existing) {
   const isEdit = !!existing;
   const init = existing || {};
+  let localPhotos = existing && existing.photos ? existing.photos.slice() : [];
+
+  const photoBox = UI.el('div', {});
+  const fileInput = UI.el('input', { type: 'file', accept: 'image/*', multiple: true, style: 'display:none' });
+  fileInput.addEventListener('change', async () => {
+    for (const f of Array.from(fileInput.files)) {
+      try {
+        const id = Store.uid();
+        const blob = await DB.fileToBlob(f, 1600, 0.85);
+        await DB.put(id, blob);
+        localPhotos.push(id);
+      } catch (e) { UI.toast('图片读取失败'); }
+    }
+    fileInput.value = '';
+    refreshStrip();
+  });
+  function refreshStrip() {
+    photoBox.innerHTML = '';
+    const strip = UI.el('div', { class: 'photo-strip' });
+    localPhotos.forEach((pid, idx) => {
+      stockThumbURL(pid, (u) => {
+        const ph = UI.el('div', { class: 'ph' }, [
+          UI.el('img', { src: u }),
+          UI.el('button', { class: 'del', html: svg('close'), onclick: () => {
+            localPhotos.splice(idx, 1);
+            DB.del(pid);
+            refreshStrip();
+          } })
+        ]);
+        strip.appendChild(ph);
+      });
+    });
+    photoBox.appendChild(strip);
+    photoBox.appendChild(UI.el('button', { class: 'btn btn-sm', style: 'margin-top:8px;', onclick: () => fileInput.click() }, [svg('camera'), '从手机相册添加照片']));
+    photoBox.appendChild(fileInput);
+  }
+  refreshStrip();
+
   const body = UI.el('div', {}, [
     stockField('角色/款式', UI.el('input', { type: 'text', id: 's-name', value: init.name || '', placeholder: '如 GSC 初音未来 脸壳' })),
     UI.el('div', { class: 'row' }, [
@@ -151,7 +205,8 @@ function stockForm(existing) {
       stockField('购入渠道', UI.el('input', { type: 'text', id: 's-channel', value: init.channel || '', placeholder: '如 淘宝 / 闲鱼' })),
       stockField('购入日期', UI.el('input', { type: 'date', id: 's-date', value: init.date || '' }))
     ]),
-    stockField('备注', UI.el('textarea', { id: 's-note', rows: '2', placeholder: '可选' }, init.note || ''))
+    stockField('备注', UI.el('textarea', { id: 's-note', rows: '2', placeholder: '可选' }, init.note || '')),
+    UI.el('div', { class: 'field' }, [UI.el('label', {}, '添加照片'), photoBox])
   ]);
   UI.openModal({
     title: isEdit ? '编辑囤货' : '添加囤货', body,
@@ -168,10 +223,16 @@ function stockForm(existing) {
           price: document.getElementById('s-price').value || '',
           channel: document.getElementById('s-channel').value.trim(),
           date: document.getElementById('s-date').value,
-          note: document.getElementById('s-note').value.trim()
+          note: document.getElementById('s-note').value.trim(),
+          photos: localPhotos.slice()
         };
-        if (isEdit) Store.update('stock', existing.id, obj);
-        else Store.add('stock', obj);
+        if (isEdit) {
+          const removed = (existing.photos || []).filter((p) => !localPhotos.includes(p));
+          removed.forEach((p) => DB.del(p));
+          Store.update('stock', existing.id, obj);
+        } else {
+          Store.add('stock', obj);
+        }
         UI.toast('已保存 💕'); c(); window.rerenderCurrent();
       } }
     ]
@@ -179,8 +240,9 @@ function stockForm(existing) {
 }
 
 function stockDel(s) {
-  UI.confirm('删除囤货', '确定删除「' + (s.name || '该囤货') + '」吗？').then((ok) => {
+  UI.confirm('删除囤货', '确定删除「' + (s.name || '该囤货') + '」及其所有照片吗？').then((ok) => {
     if (!ok) return;
+    (s.photos || []).forEach((p) => DB.del(p));
     Store.remove('stock', s.id);
     UI.toast('已删除'); window.rerenderCurrent();
   });
