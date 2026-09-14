@@ -33,8 +33,9 @@ window.StockView = {
           .filter((s) => _stockStatus === '全部' || (s.status || '在库') === _stockStatus)
           .filter((s) => stockMatch(s, _stockSearch));
         const totalQty = items.reduce((sum, s) => sum + (parseInt(s.qty, 10) || 1), 0);
-        const totalCost = items.reduce((sum, s) => sum + (parseFloat(s.cost) || 0) * (parseInt(s.qty, 10) || 1), 0);
-        const totalPrice = items.reduce((sum, s) => sum + (parseFloat(s.price) || 0) * (parseInt(s.qty, 10) || 1), 0);
+        // 数量与成本均为「总」数值，直接累加，不做 qty×cost 相乘
+        const totalCost = items.reduce((sum, s) => sum + (parseFloat(s.cost) || 0), 0);
+        const totalPrice = items.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
         statRow.innerHTML = '';
         statRow.appendChild(stockStatBox(items.length + ' 款', '囤货款式'));
         statRow.appendChild(stockStatBox(totalQty + ' 颗', '库存数量'));
@@ -137,7 +138,7 @@ function stockDetail(s) {
   const pm = (parseFloat(s.price) || 0);
   if (cm && pm) {
     const margin = Math.round((pm - cm) / cm * 100);
-    body.appendChild(UI.el('div', { class: 'muted', style: 'padding:6px 0 0;' }, '单颗毛利：¥' + Math.round(pm - cm) + '（' + (margin >= 0 ? '+' : '') + margin + '%）'));
+    body.appendChild(UI.el('div', { class: 'muted', style: 'padding:6px 0 0;' }, '毛利：¥' + Math.round(pm - cm).toLocaleString('zh-CN') + '（' + (margin >= 0 ? '+' : '') + margin + '%）'));
   }
   UI.openModal({
     title: s.name || '囤货详情', body,
@@ -198,7 +199,7 @@ function stockForm(existing) {
         UI.el('option', { value: st, selected: (init.status || '在库') === st ? '' : null }, st))))
     ]),
     UI.el('div', { class: 'row' }, [
-      stockField('成本价 (¥)', UI.el('input', { type: 'number', id: 's-cost', min: '0', step: '1', value: init.cost || '' })),
+      stockField('成本 (¥，总)', UI.el('input', { type: 'number', id: 's-cost', min: '0', step: '1', value: init.cost || '' })),
       stockField('售价 (¥)', UI.el('input', { type: 'number', id: 's-price', min: '0', step: '1', value: init.price || '' }))
     ]),
     UI.el('div', { class: 'row' }, [
